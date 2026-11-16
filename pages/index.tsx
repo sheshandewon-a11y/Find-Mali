@@ -1,11 +1,30 @@
 
 import Head from 'next/head';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Activity, ArrowRight, Check, ChevronDown, Clock3, Copy, Globe2,
-  Inbox, LockKeyhole, Mail, Menu, Plus, RefreshCw, Search,
-  ShieldCheck, Sparkles, Trash2, X, Zap, Heart, Eye, Send,
+  Activity,
+  ArrowRight,
+  Check,
+  ChevronDown,
+  Clock3,
+  Copy,
+  Globe2,
+  Inbox,
+  LockKeyhole,
+  Mail,
+  Menu,
+  Plus,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  X,
+  Zap,
+  Heart,
+  Eye,
+  Send,
+  ArrowLeft,
 } from 'lucide-react';
 
 type DemoEmail = {
@@ -50,18 +69,19 @@ const seedEmails: DemoEmail[] = [
 
 export default function Home() {
   const [address, setAddress] = useState('hello-visitor@demo.findmali.test');
-  const [emails, setEmails] = useState(seedEmails);
-  const [selected, setSelected] = useState<number | null>(1);
+  const [emails, setEmails] = useState<DemoEmail[]>(seedEmails);
+  const [selected, setSelected] = useState<number | null>(null);
   const [remaining, setRemaining] = useState(3600);
   const [timerRunning, setTimerRunning] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [query, setQuery] = useState('');
   const [mobileMenu, setMobileMenu] = useState(false);
-  const [notice, setNotice] = useState('Demo environment ready · sample messages only');
+  const [notice, setNotice] = useState(
+    'Demo environment ready · sample messages only'
+  );
   const [faqOpen, setFaqOpen] = useState(0);
 
-  // Load saved demo data safely.
+  // Load saved demo data. Always start with the Recent Messages list.
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem('find-mali-demo-v2');
@@ -79,12 +99,12 @@ export default function Home() {
         if (Array.isArray(saved.emails)) {
           setEmails(
             saved.emails.filter(
-              (e: any) =>
-                e &&
-                typeof e.id === 'number' &&
-                typeof e.sender === 'string' &&
-                typeof e.subject === 'string' &&
-                typeof e.body === 'string'
+              (email: any) =>
+                email &&
+                typeof email.id === 'number' &&
+                typeof email.sender === 'string' &&
+                typeof email.subject === 'string' &&
+                typeof email.body === 'string'
             )
           );
         }
@@ -94,39 +114,31 @@ export default function Home() {
             Math.max(0, Math.min(3600, Math.floor(saved.remaining)))
           );
         }
-
-        if (
-          typeof saved.selected === 'number' ||
-          saved.selected === null
-        ) {
-          setSelected(saved.selected);
-        }
       }
     } catch {
-      // If saved data is invalid or storage fails, continue with demo defaults.
       try {
         window.localStorage.removeItem('find-mali-demo-v2');
       } catch {
-        // Storage is unavailable; continue without saved data.
+        // Browser storage is unavailable.
       }
     } finally {
       setHydrated(true);
     }
   }, []);
 
-  // Save demo data safely.
+  // Save demo data. The selected message is intentionally not saved.
   useEffect(() => {
     if (!hydrated) return;
 
     try {
       window.localStorage.setItem(
         'find-mali-demo-v2',
-        JSON.stringify({ address, emails, selected, remaining })
+        JSON.stringify({ address, emails, remaining })
       );
     } catch {
       setNotice('Browser storage is unavailable; changes will not persist');
     }
-  }, [hydrated, address, emails, selected, remaining]);
+  }, [hydrated, address, emails, remaining]);
 
   // Session preview timer.
   useEffect(() => {
@@ -138,22 +150,6 @@ export default function Home() {
 
     return () => window.clearInterval(timer);
   }, [hydrated, timerRunning, remaining > 0]);
-
-  const visibleEmails = useMemo(
-    () =>
-      emails.filter((email) =>
-        (
-          email.sender +
-          ' ' +
-          email.subject +
-          ' ' +
-          email.body
-        )
-          .toLowerCase()
-          .includes(query.toLowerCase())
-      ),
-    [emails, query]
-  );
 
   const activeEmail = emails.find((email) => email.id === selected);
 
@@ -189,10 +185,9 @@ export default function Home() {
   function resetPreview() {
     setAddress('hello-visitor@demo.findmali.test');
     setEmails(seedEmails);
-    setSelected(1);
+    setSelected(null);
     setRemaining(3600);
     setTimerRunning(true);
-    setQuery('');
     setNotice('Preview restored to its original sample state');
   }
 
@@ -200,13 +195,22 @@ export default function Home() {
     setNotice('Preview refreshed · no external mail connection');
   }
 
+  function openMessage(id: number) {
+    setSelected(id);
+    setEmails((value) =>
+      value.map((message) =>
+        message.id === id ? { ...message, unread: false } : message
+      )
+    );
+  }
+
+  function closeMessage() {
+    setSelected(null);
+  }
+
   function removeMessage(id: number) {
     setEmails((value) => value.filter((email) => email.id !== id));
-
-    if (selected === id) {
-      setSelected(null);
-    }
-
+    setSelected(null);
     setNotice('Sample message removed');
   }
 
@@ -291,6 +295,7 @@ export default function Home() {
         </header>
 
         <main id="main-content" tabIndex={-1}>
+          {/* HERO */}
           <section className="hero" id="home">
             <div className="hero-copy">
               <div className="free-pill">
@@ -352,6 +357,7 @@ export default function Home() {
             </div>
           </section>
 
+          {/* INBOX */}
           <section className="inbox-section" id="inbox">
             <div className="section-heading">
               <div>
@@ -423,8 +429,12 @@ export default function Home() {
 
                 <div className="inbox-actions">
                   <h4>Inbox Actions</h4>
-                  <button onClick={refresh}><RefreshCw size={16} /> Refresh</button>
-                  <button onClick={newInbox}><Plus size={17} /> New Inbox</button>
+                  <button onClick={refresh}>
+                    <RefreshCw size={16} /> Refresh
+                  </button>
+                  <button onClick={newInbox}>
+                    <Plus size={17} /> New Inbox
+                  </button>
                   <button
                     className="delete-all"
                     onClick={() => {
@@ -441,132 +451,47 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* RECENT MESSAGES / MESSAGE DETAILS */}
               <div className="recent-head">
                 <h3>
-                  Recent Messages <span>{emails.length}</span>
-                  <small className="unread-count">
-                    {emails.filter((email) => email.unread).length} unread
-                  </small>
+                  {activeEmail ? (
+                    <>
+                      Message Details
+                      <span className="detail-count">OPEN</span>
+                    </>
+                  ) : (
+                    <>
+                      Recent Messages <span>{emails.length}</span>
+                      <small className="unread-count">
+                        {emails.filter((email) => email.unread).length} unread
+                      </small>
+                    </>
+                  )}
                 </h3>
-                <a href="#message-center">
-                  View inbox <ArrowRight size={14} />
-                </a>
+
+                {!activeEmail && (
+                  <span className="recent-hint">Tap a message to read</span>
+                )}
               </div>
 
-              <div className="recent-list">
-                {emails.slice(0, 3).map((email, index) => (
+              {activeEmail ? (
+                <div className="full-message-view">
                   <button
-                    className="recent-item"
-                    key={email.id}
-                    onClick={() => {
-                      setSelected(email.id);
-                      setEmails((value) =>
-                        value.map((message) =>
-                          message.id === email.id
-                            ? { ...message, unread: false }
-                            : message
-                        )
-                      );
-                      document
-                        .getElementById('message-center')
-                        ?.scrollIntoView({ behavior: 'smooth' });
-                    }}
+                    className="back-messages-button"
+                    onClick={closeMessage}
                   >
-                    <span className={'mail-app-icon app-' + index}>
-                      <Mail size={20} />
-                    </span>
-                    <span className="recent-text">
-                      <b>{email.sender}</b>
-                      <small>{email.subject}</small>
-                    </span>
-                    <time>{email.time}</time>
-                    <span className="view-pill">View</span>
+                    <ArrowLeft size={17} />
+                    Back to Recent Messages
                   </button>
-                ))}
 
-                {emails.length === 0 && (
-                  <div className="recent-empty">
-                    <Inbox size={22} />
-                    Your sample inbox is empty. Create a new demo inbox to
-                    start again.
-                  </div>
-                )}
-              </div>
-
-              <p className="notice" role="status">{notice}</p>
-            </div>
-          </section>
-
-          <section className="message-center" id="message-center">
-            <div className="section-heading">
-              <div>
-                <span className="kicker">MESSAGE CENTER</span>
-                <h2>Explore your messages</h2>
-                <p>Search and open fictional messages in the preview.</p>
-              </div>
-            </div>
-
-            <div className="mail-layout panel">
-              <div className="message-list">
-                <div className="searchbox">
-                  <Search size={16} />
-                  <input
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search messages..."
-                    aria-label="Search messages"
-                  />
-                </div>
-
-                {visibleEmails.length ? (
-                  visibleEmails.map((email) => (
-                    <button
-                      key={email.id}
-                      className={
-                        selected === email.id
-                          ? 'message-item selected'
-                          : 'message-item'
-                      }
-                      onClick={() => {
-                        setSelected(email.id);
-                        setEmails((value) =>
-                          value.map((message) =>
-                            message.id === email.id
-                              ? { ...message, unread: false }
-                              : message
-                          )
-                        );
-                      }}
-                    >
-                      <span className="message-avatar">
-                        {email.sender[0].toUpperCase()}
-                      </span>
-                      <span className="message-meta">
-                        <strong>{email.sender}</strong>
-                        <b>{email.subject}</b>
-                        <small>{email.time}</small>
-                      </span>
-                      {email.unread && <i className="unread-dot" />}
-                    </button>
-                  ))
-                ) : (
-                  <div className="empty-list">
-                    <Inbox size={27} />
-                    <strong>No messages found</strong>
-                    <span>Try a different search.</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="reader">
-                {activeEmail ? (
-                  <>
+                  <article className="full-message-card">
                     <div className="reader-top">
-                      <span className="kicker">MESSAGE PREVIEW</span>
+                      <span className="kicker">MESSAGE DETAILS</span>
                       <button
                         className="icon-button danger"
                         onClick={() => removeMessage(activeEmail.id)}
                         aria-label="Delete message"
+                        title="Delete message"
                       >
                         <Trash2 size={17} />
                       </button>
@@ -585,23 +510,51 @@ export default function Home() {
                       <time>{activeEmail.time}</time>
                     </div>
 
-                    <div className="email-body">{activeEmail.body}</div>
+                    <div className="email-body">
+                      {activeEmail.body}
+                    </div>
 
                     <div className="sample-label">
-                      <ShieldCheck size={15} /> Fictional sample content
+                      <ShieldCheck size={15} />
+                      Fictional sample content
                     </div>
-                  </>
-                ) : (
-                  <div className="reader-empty">
-                    <div className="empty-icon"><Inbox size={30} /></div>
-                    <h3>Your inbox is waiting</h3>
-                    <p>Select a sample message to preview it here.</p>
-                  </div>
-                )}
-              </div>
+                  </article>
+                </div>
+              ) : (
+                <div className="recent-list">
+                  {emails.slice(0, 3).map((email, index) => (
+                    <button
+                      className="recent-item"
+                      key={email.id}
+                      onClick={() => openMessage(email.id)}
+                    >
+                      <span className={'mail-app-icon app-' + index}>
+                        <Mail size={20} />
+                      </span>
+                      <span className="recent-text">
+                        <b>{email.sender}</b>
+                        <small>{email.subject}</small>
+                      </span>
+                      <time>{email.time}</time>
+                      <span className="view-pill">View</span>
+                    </button>
+                  ))}
+
+                  {emails.length === 0 && (
+                    <div className="recent-empty">
+                      <Inbox size={22} />
+                      Your sample inbox is empty. Create a new demo inbox to
+                      start again.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <p className="notice" role="status">{notice}</p>
             </div>
           </section>
 
+          {/* FEATURES */}
           <section className="features" id="features">
             <div className="section-heading centered">
               <div>
@@ -637,8 +590,8 @@ export default function Home() {
                 <span className="feature-icon violet"><Activity /></span>
                 <h3>Smart controls</h3>
                 <p>
-                  Search, refresh, copy and manage sample messages in one
-                  focused space.
+                  Refresh, copy and manage sample messages in one focused
+                  space.
                 </p>
               </article>
 
@@ -653,6 +606,7 @@ export default function Home() {
             </div>
           </section>
 
+          {/* ABOUT */}
           <section className="about panel" id="about">
             <div className="about-art">
               <div className="about-shield">
@@ -679,6 +633,7 @@ export default function Home() {
             </div>
           </section>
 
+          {/* FAQ */}
           <section className="faq" id="faq">
             <div className="section-heading centered">
               <div>
@@ -711,6 +666,7 @@ export default function Home() {
             </div>
           </section>
 
+          {/* CALL TO ACTION */}
           <section className="closing-cta">
             <div className="cta-icon"><Send size={27} /></div>
             <div>
@@ -724,6 +680,7 @@ export default function Home() {
           </section>
         </main>
 
+        {/* FOOTER */}
         <footer>
           <Link className="brand footer-brand" href="/">
             <span className="brand-mark"><Mail size={21} /></span>
