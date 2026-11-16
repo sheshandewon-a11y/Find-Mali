@@ -68,7 +68,9 @@ const seedEmails: DemoEmail[] = [
 ];
 
 export default function Home() {
-  const [address, setAddress] = useState('hello-visitor@demo.findmali.test');
+  const [address, setAddress] = useState(
+    'hello-visitor@demo.findmali.test'
+  );
   const [emails, setEmails] = useState<DemoEmail[]>(seedEmails);
   const [selected, setSelected] = useState<number | null>(null);
   const [remaining, setRemaining] = useState(3600);
@@ -80,7 +82,7 @@ export default function Home() {
   );
   const [faqOpen, setFaqOpen] = useState(0);
 
-  // Load saved demo data. Always start with the Recent Messages list.
+  // Load saved demo data.
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem('find-mali-demo-v2');
@@ -125,7 +127,7 @@ export default function Home() {
     }
   }, []);
 
-  // Save demo data. The selected message is intentionally not saved.
+  // Save local demo data.
   useEffect(() => {
     if (!hydrated) return;
 
@@ -139,7 +141,7 @@ export default function Home() {
     }
   }, [hydrated, address, emails, remaining]);
 
-  // Automatic session countdown.
+  // Automatic session countdown. No pause or reset controls.
   useEffect(() => {
     if (!hydrated || remaining <= 0) return;
 
@@ -154,7 +156,9 @@ export default function Home() {
 
   const time = `${Math.floor(remaining / 60)
     .toString()
-    .padStart(2, '0')}:${(remaining % 60).toString().padStart(2, '0')}`;
+    .padStart(2, '0')}:${(remaining % 60)
+    .toString()
+    .padStart(2, '0')}`;
 
   async function copyAddress() {
     try {
@@ -206,7 +210,9 @@ export default function Home() {
   }
 
   function removeMessage(id: number) {
-    setEmails((value) => value.filter((email) => email.id !== id));
+    setEmails((value) =>
+      value.filter((email) => email.id !== id)
+    );
     setSelected(null);
     setNotice('Sample message removed');
   }
@@ -239,7 +245,10 @@ export default function Home() {
           content="Explore the FIND MALI private inbox interface preview."
         />
         <meta name="theme-color" content="#050b1b" />
-        <meta property="og:title" content="FIND MALI — Your Inbox, Simplified" />
+        <meta
+          property="og:title"
+          content="FIND MALI — Your Inbox, Simplified"
+        />
         <meta
           property="og:description"
           content="Explore the FIND MALI inbox interface preview."
@@ -296,7 +305,8 @@ export default function Home() {
           <section className="hero" id="home">
             <div className="hero-copy">
               <div className="free-pill">
-                <Sparkles size={14} /> 100% FREE PREVIEW · NO REGISTRATION
+                <Sparkles size={14} />
+                100% FREE PREVIEW · NO REGISTRATION
               </div>
 
               <h1>FIND <span>MALI</span></h1>
@@ -360,7 +370,9 @@ export default function Home() {
               <div>
                 <span className="kicker">YOUR PERSONAL SPACE</span>
                 <h2>Your inbox is ready <span className="live-dot" /></h2>
-                <p>One simple place to explore your sample messages.</p>
+                <p>
+                  One simple place to explore your sample messages.
+                </p>
               </div>
               <span className="preview-badge"><i /> PREVIEW ACTIVE</span>
             </div>
@@ -378,12 +390,16 @@ export default function Home() {
 
                 <div className="address-area">
                   <div className="ready-label">
-                    <span className="check-round"><Check size={15} /></span>
+                    <span className="check-round">
+                      <Check size={15} />
+                    </span>
                     YOUR TEMPORARY INBOX IS READY
                   </div>
 
                   <h3>Welcome to your inbox</h3>
-                  <p>Your demo address is ready to copy and explore.</p>
+                  <p>
+                    Your demo address is ready to copy and explore.
+                  </p>
 
                   <div className="address-row">
                     <div className="address-value">
@@ -396,23 +412,19 @@ export default function Home() {
                     </button>
                   </div>
 
+                  {/* AUTOMATIC SESSION TIMER */}
                   <div className="timer-row">
                     <Clock3 size={16} />
                     <span>Session preview</span>
                     <b>{time}</b>
-                    <button
-                      className="timer-control"
-                      onClick={() => {
-                        setRemaining(3600);
-                        setNotice('Session preview timer reset');
-                      }}
-                    >
-                      Reset
-                    </button>
                   </div>
 
                   <div className="progress-track">
-                    <span style={{ width: (remaining / 3600) * 100 + '%' }} />
+                    <span
+                      style={{
+                        width: (remaining / 3600) * 100 + '%',
+                      }}
+                    />
                   </div>
                 </div>
 
@@ -459,7 +471,9 @@ export default function Home() {
                 </h3>
 
                 {!activeEmail && (
-                  <span className="recent-hint">Tap a message to read</span>
+                  <span className="recent-hint">
+                    Tap a message to read
+                  </span>
                 )}
               </div>
 
@@ -661,7 +675,9 @@ export default function Home() {
             <div>
               <span className="kicker">READY TO TAKE A LOOK?</span>
               <h2>Your next inbox starts here.</h2>
-              <p>Explore the FIND MALI preview and see how it feels.</p>
+              <p>
+                Explore the FIND MALI preview and see how it feels.
+              </p>
             </div>
             <a className="button primary" href="#inbox">
               Get Started <ArrowRight size={16} />
