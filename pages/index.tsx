@@ -72,7 +72,6 @@ export default function Home() {
   const [emails, setEmails] = useState<DemoEmail[]>(seedEmails);
   const [selected, setSelected] = useState<number | null>(null);
   const [remaining, setRemaining] = useState(3600);
-  const [timerRunning, setTimerRunning] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [copied, setCopied] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -140,16 +139,16 @@ export default function Home() {
     }
   }, [hydrated, address, emails, remaining]);
 
-  // Session preview timer.
+  // Automatic session countdown.
   useEffect(() => {
-    if (!hydrated || !timerRunning || remaining <= 0) return;
+    if (!hydrated || remaining <= 0) return;
 
     const timer = window.setInterval(() => {
       setRemaining((value) => Math.max(0, value - 1));
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [hydrated, timerRunning, remaining > 0]);
+  }, [hydrated, remaining > 0]);
 
   const activeEmail = emails.find((email) => email.id === selected);
 
@@ -178,7 +177,6 @@ export default function Home() {
     setEmails([]);
     setSelected(null);
     setRemaining(3600);
-    setTimerRunning(true);
     setNotice('Fresh sample inbox created');
   }
 
@@ -187,7 +185,6 @@ export default function Home() {
     setEmails(seedEmails);
     setSelected(null);
     setRemaining(3600);
-    setTimerRunning(true);
     setNotice('Preview restored to its original sample state');
   }
 
@@ -405,16 +402,8 @@ export default function Home() {
                     <b>{time}</b>
                     <button
                       className="timer-control"
-                      onClick={() => setTimerRunning((value) => !value)}
-                      disabled={remaining === 0}
-                    >
-                      {timerRunning ? 'Pause' : 'Resume'}
-                    </button>
-                    <button
-                      className="timer-control"
                       onClick={() => {
                         setRemaining(3600);
-                        setTimerRunning(true);
                         setNotice('Session preview timer reset');
                       }}
                     >
