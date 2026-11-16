@@ -1,69 +1,11 @@
+# Project status
 
-# FIND MALI — Production Roadmap
+Version: 2.0 frontend prototype
 
-## Stage 1 — Project Foundation
+This source package preserves the approved dark futuristic FIND MALI concept: deep navy surfaces, glowing cyan accents, violet/pink highlights, rounded glass-like panels and subtle animation.
 
-- Generate package-lock.json.
-- Verify project structure.
-- Fix TypeScript errors.
-- Fix production build errors.
-- Test mobile responsiveness.
-- Test desktop responsiveness.
-- Verify GitHub Actions.
+The inbox interactions are client-side demonstrations using fictional sample messages only. No real email integration or server-side data storage is present.
 
-## Stage 2 — Backend Planning
+The package includes the original design concept PDF under `docs/design-concept.pdf` for visual reference.
 
-Plan the backend architecture.
-
-Required components:
-
-- Email receiving provider
-- Backend API
-- Database
-- Inbox management
-- Message expiration
-- Secure message access
-- Rate limiting
-- Abuse prevention
-
-## Stage 3 — Real Email Functionality
-
-Implement:
-
-- Generate real email addresses.
-- Receive incoming emails.
-- Process inbound email webhooks.
-- Display received messages.
-- Refresh inbox.
-- Delete messages.
-- Expire temporary inboxes.
-- Secure inbox access.
-
-## Stage 4 — Security and Privacy
-
-- Protect private inboxes.
-- Validate incoming email data.
-- Safely display email content.
-- Prevent abuse and spam.
-- Protect API credentials.
-- Implement message deletion.
-- Define data retention periods.
-
-## Stage 5 — Production Launch
-
-- Complete backend testing.
-- Complete frontend testing.
-- Review Privacy Policy.
-- Review Terms of Use.
-- Test email delivery.
-- Test mobile devices.
-- Test deployment.
-- Review DNS and email routing.
-
-## Current Project Status
-
-The current repository is a frontend demonstration.
-
-Real email functionality has not yet been implemented.
-
-Do not enable production email receipt until the backend, privacy and security requirements have been reviewed.
+Build verification could not be completed in the current environment because dependency installation did not finish. Run `npm install`, `npm run typecheck`, and `npm run build` on a network-enabled development machine before deployment.
