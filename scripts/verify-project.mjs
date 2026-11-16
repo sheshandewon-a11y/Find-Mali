@@ -17,18 +17,35 @@ const required = [
   'README.md',
 ];
 
-const missing = required.filter((file) => !existsSync(join(root, file)));
+const missing = required.filter(
+  (file) => !existsSync(join(root, file))
+);
 
-if (missing.length) {
+if (missing.length > 0) {
   console.error('Missing required files:', missing.join(', '));
   process.exit(1);
 }
 
-const page = readFileSync(join(root, 'pages/index.tsx'), 'utf8');
-const health = readFileSync(join(root, 'pages/api/health.ts'), 'utf8');
+const page = readFileSync(
+  join(root, 'pages/index.tsx'),
+  'utf8'
+);
+
+const health = readFileSync(
+  join(root, 'pages/api/health.ts'),
+  'utf8'
+);
+
 const pkg = JSON.parse(
   readFileSync(join(root, 'package.json'), 'utf8')
 );
+
+// Inspect only the timer JSX block.
+const timerRowMatch = page.match(
+  /<div className="timer-row">([\s\S]*?)<\/div>/
+);
+
+const timerRow = timerRowMatch?.[1] ?? '';
 
 const checks = [
   [
@@ -45,16 +62,19 @@ const checks = [
   ],
   [
     'automatic session countdown is present',
-    page.includes('window.setInterval'),
+    page.includes('window.setInterval') &&
+      page.includes('window.clearInterval'),
   ],
   [
-    'session timer reset control is present',
-    page.includes('Session preview timer reset'),
+    'session timer display is present',
+    timerRow.includes('{time}'),
   ],
   [
-    'pause/resume controls are removed',
-    !page.includes('timerRunning') &&
-      !/\b(Pause|Resume)\b/.test(page),
+    'session timer has no pause/resume/reset controls',
+    timerRow.length > 0 &&
+      !timerRow.includes('<button') &&
+      !/\b(Pause|Resume|Reset)\b/.test(timerRow) &&
+      !page.includes('timerRunning'),
   ],
   [
     'typecheck script exists',
@@ -68,10 +88,10 @@ const checks = [
 
 let failed = false;
 
-for (const [label, ok] of checks) {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`);
+for (const [label, passed] of checks) {
+  console.log(`${passed ? 'PASS' : 'FAIL'} ${label}`);
 
-  if (!ok) {
+  if (!passed) {
     failed = true;
   }
 }
