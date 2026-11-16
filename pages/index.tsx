@@ -37,6 +37,8 @@ type DemoEmail = {
   tag: string;
 };
 
+const STORAGE_KEY = 'find-mali-demo-v2';
+
 const seedEmails: DemoEmail[] = [
   {
     id: 1,
@@ -67,25 +69,44 @@ const seedEmails: DemoEmail[] = [
   },
 ];
 
+function isValidEmail(value: any): value is DemoEmail {
+  return (
+    value &&
+    typeof value.id === 'number' &&
+    typeof value.sender === 'string' &&
+    typeof value.subject === 'string' &&
+    typeof value.body === 'string' &&
+    typeof value.time === 'string' &&
+    typeof value.unread === 'boolean' &&
+    typeof value.tag === 'string'
+  );
+}
+
 export default function Home() {
   const [address, setAddress] = useState(
     'hello-visitor@demo.findmali.test'
   );
+
   const [emails, setEmails] = useState<DemoEmail[]>(seedEmails);
   const [selected, setSelected] = useState<number | null>(null);
   const [remaining, setRemaining] = useState(3600);
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
+
   const [hydrated, setHydrated] = useState(false);
   const [copied, setCopied] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
   const [notice, setNotice] = useState(
     'Demo environment ready · sample messages only'
   );
+
   const [faqOpen, setFaqOpen] = useState(0);
 
-  // Load saved demo data.
+  // LOAD SAVED DEMO DATA
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem('find-mali-demo-v2');
+      const raw = window.localStorage.getItem(STORAGE_KEY);
 
       if (raw) {
         const saved = JSON.parse(raw);
@@ -98,61 +119,134 @@ export default function Home() {
         }
 
         if (Array.isArray(saved.emails)) {
-          setEmails(
-            saved.emails.filter(
-              (email: any) =>
-                email &&
-                typeof email.id === 'number' &&
-                typeof email.sender === 'string' &&
-                typeof email.subject === 'string' &&
-                typeof email.body === 'string'
-            )
-          );
+          setEmails(saved.emails.filter(isValidEmail));
         }
 
-        if (typeof saved.remaining === 'number') {
-          setRemaining(
-            Math.max(0, Math.min(3600, Math.floor(saved.remaining)))
-          );
+        if (
+          typeof saved.expiresAt === 'number' &&
+          Number.isFinite(saved.expiresAt)
+        ) {
+          setExpiresAt(saved.expiresAt);
+        } else {
+          const oldRemaining =
+            typeof saved.remaining === 'number'
+              ? Math.max(
+                  0,
+                  Math.min(3600, Math.floor(saved.remaining))
+                )
+              : 3600;
+
+          setExpiresAt(Date.now() + oldRemaining * 1000);
         }
+      } else {
+        setExpiresAt(Date.now() + 3600 * 1000);
       }
     } catch {
       try {
-        window.localStorage.removeItem('find-mali-demo-v2');
+        window.localStorage.removeItem(STORAGE_KEY);
       } catch {
         // Browser storage is unavailable.
       }
+
+      setExpiresAt(Date.now() + 3600 * 1000);
     } finally {
       setHydrated(true);
     }
   }, []);
 
-  // Save local demo data.
+  // SAVE DEMO DATA
   useEffect(() => {
     if (!hydrated) return;
 
     try {
       window.localStorage.setItem(
-        'find-mali-demo-v2',
-        JSON.stringify({ address, emails, remaining })
+        STORAGE_KEY,
+        JSON.stringify({
+          address,
+          emails,
+          remaining,
+          expiresAt,
+        })
       );
     } catch {
-      setNotice('Browser storage is unavailable; changes will not persist');
+      setNotice(
+        'Browser storage is unavailable; changes will not persist'
+      );
     }
-  }, [hydrated, address, emails, remaining]);
+  }, [
+    hydrated,
+    address,
+    emails,
+    remaining,
+    expiresAt,
+  ]);
 
-  // Automatic session countdown. No pause or reset controls.
+  // AUTOMATIC SESSION TIMER
+  // Uses a real expiry timestamp so background time is counted.
   useEffect(() => {
-    if (!hydrated || remaining <= 0) return;
+    if (!hydrated || expiresAt === null) return;
 
-    const timer = window.setInterval(() => {
-      setRemaining((value) => Math.max(0, value - 1));
-    }, 1000);
+    const updateTimer = () => {
+      const seconds = Math.max(
+        0,
+        Math.ceil((expiresAt - Date.now()) / 1000)
+      );
 
-    return () => window.clearInterval(timer);
-  }, [hydrated, remaining > 0]);
+      setRemaining(seconds);
+    };
 
-  const activeEmail = emails.find((email) => email.id === selected);
+    updateTimer();
+
+    const timer = window.setInterval(updateTimer, 1000);
+
+    document.addEventListener(
+      'visibilitychange',
+      updateTimer
+    );
+
+    return () => {
+      window.clearInterval(timer);
+
+      document.removeEventListener(
+        'visibilitychange',
+        updateTimer
+      );
+    };
+  }, [hydrated, expiresAt]);
+
+  // MOBILE MENU ESCAPE SUPPORT
+  useEffect(() => {
+    if (!mobileMenu) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileMenu(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [mobileMenu]);
+
+  // FILTERED EMAILS
+  const filteredEmails = emails.filter((email) => {
+    const query = searchQuery.toLowerCase().trim();
+
+    if (!query) return true;
+
+    return (
+      email.sender.toLowerCase().includes(query) ||
+      email.subject.toLowerCase().includes(query) ||
+      email.body.toLowerCase().includes(query)
+    );
+  });
+
+  const activeEmail = emails.find(
+    (email) => email.id === selected
+  );
 
   const time = `${Math.floor(remaining / 60)
     .toString()
@@ -160,61 +254,135 @@ export default function Home() {
     .toString()
     .padStart(2, '0')}`;
 
+  // COPY DEMO ADDRESS
   async function copyAddress() {
     try {
       await navigator.clipboard.writeText(address);
+
       setCopied(true);
       setNotice('Demo address copied to clipboard');
 
-      window.setTimeout(() => setCopied(false), 1600);
+      window.setTimeout(() => {
+        setCopied(false);
+      }, 1600);
     } catch {
-      setNotice('Clipboard is not available in this browser');
+      setNotice(
+        'Clipboard is not available in this browser'
+      );
     }
   }
 
+  // CREATE NEW DEMO INBOX
   function newInbox() {
-    setAddress(
+    const newAddress =
       'visitor-' +
-        Math.random().toString(36).slice(2, 7) +
-        '@demo.findmali.test'
-    );
+      Math.random().toString(36).slice(2, 7) +
+      '@demo.findmali.test';
+
+    const newExpiry = Date.now() + 3600 * 1000;
+
+    setAddress(newAddress);
     setEmails([]);
     setSelected(null);
     setRemaining(3600);
+    setExpiresAt(newExpiry);
+    setSearchQuery('');
+
     setNotice('Fresh sample inbox created');
   }
 
+  // RESET DEMO PREVIEW
   function resetPreview() {
+    const newExpiry = Date.now() + 3600 * 1000;
+
     setAddress('hello-visitor@demo.findmali.test');
     setEmails(seedEmails);
     setSelected(null);
     setRemaining(3600);
-    setNotice('Preview restored to its original sample state');
+    setExpiresAt(newExpiry);
+    setSearchQuery('');
+
+    setNotice(
+      'Preview restored to its original sample state'
+    );
   }
 
+  // REFRESH LOCAL DEMO DATA
   function refresh() {
-    setNotice('Preview refreshed · no external mail connection');
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+
+      if (!raw) {
+        setNotice('No saved demo inbox was found');
+        return;
+      }
+
+      const saved = JSON.parse(raw);
+
+      if (
+        typeof saved.address === 'string' &&
+        saved.address.endsWith('@demo.findmali.test')
+      ) {
+        setAddress(saved.address);
+      }
+
+      if (Array.isArray(saved.emails)) {
+        setEmails(saved.emails.filter(isValidEmail));
+      }
+
+      if (
+        typeof saved.expiresAt === 'number' &&
+        Number.isFinite(saved.expiresAt)
+      ) {
+        setExpiresAt(saved.expiresAt);
+      }
+
+      setSelected(null);
+      setSearchQuery('');
+
+      setNotice(
+        'Local demo inbox refreshed successfully'
+      );
+    } catch {
+      setNotice('Unable to refresh local demo data');
+    }
   }
 
+  // OPEN MESSAGE
   function openMessage(id: number) {
     setSelected(id);
+
     setEmails((value) =>
       value.map((message) =>
-        message.id === id ? { ...message, unread: false } : message
+        message.id === id
+          ? { ...message, unread: false }
+          : message
       )
     );
   }
 
+  // CLOSE MESSAGE
   function closeMessage() {
     setSelected(null);
   }
 
+  // DELETE MESSAGE
   function removeMessage(id: number) {
     setEmails((value) =>
       value.filter((email) => email.id !== id)
     );
+
     setSelected(null);
     setNotice('Sample message removed');
+  }
+
+  // CLEAR ALL MESSAGES
+  function clearAllMessages() {
+    setEmails([]);
+    setSelected(null);
+    setSearchQuery('');
+
+    setNotice('All sample messages cleared');
   }
 
   const faqs = [
@@ -240,22 +408,36 @@ export default function Home() {
     <>
       <Head>
         <title>FIND MALI — Your Inbox, Simplified</title>
+
         <meta
           name="description"
           content="Explore the FIND MALI private inbox interface preview."
         />
+
         <meta name="theme-color" content="#050b1b" />
+
         <meta
           property="og:title"
           content="FIND MALI — Your Inbox, Simplified"
         />
+
         <meta
           property="og:description"
           content="Explore the FIND MALI inbox interface preview."
         />
+
         <meta property="og:type" content="website" />
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <link rel="manifest" href="/manifest.webmanifest" />
+
+        <link
+          rel="icon"
+          href="/favicon.svg"
+          type="image/svg+xml"
+        />
+
+        <link
+          rel="manifest"
+          href="/manifest.webmanifest"
+        />
       </Head>
 
       <div className="site-shell">
@@ -263,11 +445,13 @@ export default function Home() {
           Skip to main content
         </a>
 
+        {/* HEADER */}
         <header className="topbar">
           <Link className="brand" href="/">
             <span className="brand-mark">
               <Mail size={24} />
             </span>
+
             <span>
               FIND <b>MALI</b>
               <small>YOUR INBOX, SIMPLIFIED</small>
@@ -276,7 +460,9 @@ export default function Home() {
 
           <button
             className="mobile-toggle"
-            onClick={() => setMobileMenu((value) => !value)}
+            onClick={() =>
+              setMobileMenu((value) => !value)
+            }
             aria-label="Toggle navigation"
             aria-expanded={mobileMenu}
             aria-controls="main-navigation"
@@ -294,6 +480,7 @@ export default function Home() {
             <a href="#features">Features</a>
             <a href="#faq">FAQ</a>
             <a href="#about">About</a>
+
             <a className="nav-cta" href="#inbox">
               Get Started <ArrowRight size={15} />
             </a>
@@ -310,28 +497,53 @@ export default function Home() {
               </div>
 
               <h1>FIND <span>MALI</span></h1>
+
               <h2>Your Temporary Inbox</h2>
-              <h3>Quick. Secure. <em>Simple.</em></h3>
+
+              <h3>
+                Quick. Secure. <em>Simple.</em>
+              </h3>
 
               <p>
-                Explore a fresh, modern inbox experience with a clean interface
-                that keeps everything in one place.
+                Explore a fresh, modern inbox experience with
+                a clean interface that keeps everything in one
+                place.
               </p>
 
               <div className="hero-actions">
                 <a className="button primary" href="#inbox">
                   <Zap size={17} /> Explore Inbox
                 </a>
+
                 <a className="button outline" href="#features">
                   <Eye size={16} /> Learn More
                 </a>
               </div>
 
               <div className="hero-stats">
-                <div><Zap /><b>Instant</b><small>Demo setup</small></div>
-                <div><ShieldCheck /><b>Privacy</b><small>Focused design</small></div>
-                <div><Clock3 /><b>60 Min</b><small>Session preview</small></div>
-                <div><Heart /><b>Free</b><small>To explore</small></div>
+                <div>
+                  <Zap />
+                  <b>Instant</b>
+                  <small>Demo setup</small>
+                </div>
+
+                <div>
+                  <ShieldCheck />
+                  <b>Privacy</b>
+                  <small>Focused design</small>
+                </div>
+
+                <div>
+                  <Clock3 />
+                  <b>60 Min</b>
+                  <small>Session preview</small>
+                </div>
+
+                <div>
+                  <Heart />
+                  <b>Free</b>
+                  <small>To explore</small>
+                </div>
               </div>
             </div>
 
@@ -342,10 +554,12 @@ export default function Home() {
 
               <div className="mail-platform">
                 <div className="platform-top" />
+
                 <div className="neon-envelope">
                   <div className="env-flap" />
                   <Mail size={104} strokeWidth={1.15} />
                 </div>
+
                 <div className="platform-glow" />
               </div>
 
@@ -354,11 +568,15 @@ export default function Home() {
               </div>
 
               <div className="float-chip chip-a">
-                <ShieldCheck size={15} /> PRIVATE BY DESIGN
+                <ShieldCheck size={15} />
+                PRIVATE BY DESIGN
               </div>
+
               <div className="float-chip chip-b">
-                <Activity size={15} /> LIVE PREVIEW
+                <Activity size={15} />
+                LIVE PREVIEW
               </div>
+
               <div className="spark s1">✦</div>
               <div className="spark s2">✧</div>
             </div>
@@ -368,23 +586,42 @@ export default function Home() {
           <section className="inbox-section" id="inbox">
             <div className="section-heading">
               <div>
-                <span className="kicker">YOUR PERSONAL SPACE</span>
-                <h2>Your inbox is ready <span className="live-dot" /></h2>
+                <span className="kicker">
+                  YOUR PERSONAL SPACE
+                </span>
+
+                <h2>
+                  Your inbox is ready{' '}
+                  <span className="live-dot" />
+                </h2>
+
                 <p>
-                  One simple place to explore your sample messages.
+                  One simple place to explore your sample
+                  messages.
                 </p>
               </div>
-              <span className="preview-badge"><i /> PREVIEW ACTIVE</span>
+
+              <span className="preview-badge">
+                <i /> PREVIEW ACTIVE
+              </span>
             </div>
 
             <div className="inbox-dashboard panel">
               <div className="inbox-top">
                 <div className="mascot-wrap">
                   <div className="mascot-aura" />
+
                   <div className="mascot">
                     <div className="antenna" />
-                    <div className="robot-head"><i /><i /></div>
-                    <div className="robot-body"><Mail size={34} /></div>
+
+                    <div className="robot-head">
+                      <i />
+                      <i />
+                    </div>
+
+                    <div className="robot-body">
+                      <Mail size={34} />
+                    </div>
                   </div>
                 </div>
 
@@ -393,12 +630,15 @@ export default function Home() {
                     <span className="check-round">
                       <Check size={15} />
                     </span>
+
                     YOUR TEMPORARY INBOX IS READY
                   </div>
 
                   <h3>Welcome to your inbox</h3>
+
                   <p>
-                    Your demo address is ready to copy and explore.
+                    Your demo address is ready to copy and
+                    explore.
                   </p>
 
                   <div className="address-row">
@@ -406,8 +646,17 @@ export default function Home() {
                       <Mail size={18} />
                       <strong>{address}</strong>
                     </div>
-                    <button className="copy-button" onClick={copyAddress}>
-                      {copied ? <Check size={16} /> : <Copy size={16} />}
+
+                    <button
+                      className="copy-button"
+                      onClick={copyAddress}
+                    >
+                      {copied ? (
+                        <Check size={16} />
+                      ) : (
+                        <Copy size={16} />
+                      )}
+
                       {copied ? 'Copied' : 'Copy'}
                     </button>
                   </div>
@@ -422,32 +671,38 @@ export default function Home() {
                   <div className="progress-track">
                     <span
                       style={{
-                        width: (remaining / 3600) * 100 + '%',
+                        width:
+                          (remaining / 3600) * 100 + '%',
                       }}
                     />
                   </div>
                 </div>
 
+                {/* INBOX ACTIONS */}
                 <div className="inbox-actions">
                   <h4>Inbox Actions</h4>
+
                   <button onClick={refresh}>
-                    <RefreshCw size={16} /> Refresh
+                    <RefreshCw size={16} />
+                    Refresh
                   </button>
+
                   <button onClick={newInbox}>
-                    <Plus size={17} /> New Inbox
+                    <Plus size={17} />
+                    New Inbox
                   </button>
+
                   <button
                     className="delete-all"
-                    onClick={() => {
-                      setEmails([]);
-                      setSelected(null);
-                      setNotice('All sample messages cleared');
-                    }}
+                    onClick={clearAllMessages}
                   >
-                    <Trash2 size={16} /> Clear All
+                    <Trash2 size={16} />
+                    Clear All
                   </button>
+
                   <button onClick={resetPreview}>
-                    <RefreshCw size={16} /> Reset Demo
+                    <RefreshCw size={16} />
+                    Reset Demo
                   </button>
                 </div>
               </div>
@@ -458,13 +713,22 @@ export default function Home() {
                   {activeEmail ? (
                     <>
                       Message Details
-                      <span className="detail-count">OPEN</span>
+                      <span className="detail-count">
+                        OPEN
+                      </span>
                     </>
                   ) : (
                     <>
-                      Recent Messages <span>{emails.length}</span>
+                      Recent Messages
+                      <span>{emails.length}</span>
+
                       <small className="unread-count">
-                        {emails.filter((email) => email.unread).length} unread
+                        {
+                          emails.filter(
+                            (email) => email.unread
+                          ).length
+                        }{' '}
+                        unread
                       </small>
                     </>
                   )}
@@ -477,6 +741,34 @@ export default function Home() {
                 )}
               </div>
 
+              {/* SEARCH */}
+              {!activeEmail && (
+                <div className="inbox-search">
+                  <Mail size={17} />
+
+                  <input
+                    type="search"
+                    placeholder="Search messages, senders..."
+                    value={searchQuery}
+                    onChange={(event) =>
+                      setSearchQuery(event.target.value)
+                    }
+                    aria-label="Search sample messages"
+                  />
+
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      aria-label="Clear search"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* MESSAGE DETAILS */}
               {activeEmail ? (
                 <div className="full-message-view">
                   <button
@@ -489,10 +781,15 @@ export default function Home() {
 
                   <article className="full-message-card">
                     <div className="reader-top">
-                      <span className="kicker">MESSAGE DETAILS</span>
+                      <span className="kicker">
+                        MESSAGE DETAILS
+                      </span>
+
                       <button
                         className="icon-button danger"
-                        onClick={() => removeMessage(activeEmail.id)}
+                        onClick={() =>
+                          removeMessage(activeEmail.id)
+                        }
                         aria-label="Delete message"
                         title="Delete message"
                       >
@@ -506,10 +803,12 @@ export default function Home() {
                       <span className="message-avatar">
                         {activeEmail.sender[0].toUpperCase()}
                       </span>
+
                       <span>
                         <strong>{activeEmail.sender}</strong>
                         <small>To: {address}</small>
                       </span>
+
                       <time>{activeEmail.time}</time>
                     </div>
 
@@ -525,35 +824,52 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="recent-list">
-                  {emails.slice(0, 3).map((email, index) => (
-                    <button
-                      className="recent-item"
-                      key={email.id}
-                      onClick={() => openMessage(email.id)}
-                    >
-                      <span className={'mail-app-icon app-' + index}>
-                        <Mail size={20} />
-                      </span>
-                      <span className="recent-text">
-                        <b>{email.sender}</b>
-                        <small>{email.subject}</small>
-                      </span>
-                      <time>{email.time}</time>
-                      <span className="view-pill">View</span>
-                    </button>
-                  ))}
+                  {filteredEmails
+                    .slice(0, 3)
+                    .map((email, index) => (
+                      <button
+                        className="recent-item"
+                        key={email.id}
+                        onClick={() =>
+                          openMessage(email.id)
+                        }
+                      >
+                        <span
+                          className={
+                            'mail-app-icon app-' + index
+                          }
+                        >
+                          <Mail size={20} />
+                        </span>
 
-                  {emails.length === 0 && (
+                        <span className="recent-text">
+                          <b>{email.sender}</b>
+                          <small>{email.subject}</small>
+                        </span>
+
+                        <time>{email.time}</time>
+
+                        <span className="view-pill">
+                          View
+                        </span>
+                      </button>
+                    ))}
+
+                  {filteredEmails.length === 0 && (
                     <div className="recent-empty">
                       <Inbox size={22} />
-                      Your sample inbox is empty. Create a new demo inbox to
-                      start again.
+
+                      {emails.length === 0
+                        ? 'Your sample inbox is empty. Create a new demo inbox to start again.'
+                        : 'No matching sample messages found.'}
                     </div>
                   )}
                 </div>
               )}
 
-              <p className="notice" role="status">{notice}</p>
+              <p className="notice" role="status">
+                {notice}
+              </p>
             </div>
           </section>
 
@@ -561,49 +877,69 @@ export default function Home() {
           <section className="features" id="features">
             <div className="section-heading centered">
               <div>
-                <span className="kicker">MADE FOR A BETTER EXPERIENCE</span>
+                <span className="kicker">
+                  MADE FOR A BETTER EXPERIENCE
+                </span>
+
                 <h2>Everything feels simpler.</h2>
+
                 <p>
-                  A clean interface, thoughtful details and controls that stay
-                  out of your way.
+                  A clean interface, thoughtful details and
+                  controls that stay out of your way.
                 </p>
               </div>
             </div>
 
             <div className="feature-grid">
               <article className="feature-card panel">
-                <span className="feature-icon cyan"><Zap /></span>
+                <span className="feature-icon cyan">
+                  <Zap />
+                </span>
+
                 <h3>Quick to explore</h3>
+
                 <p>
-                  A simple flow helps you get around the preview without
-                  unnecessary steps.
+                  A simple flow helps you get around the
+                  preview without unnecessary steps.
                 </p>
               </article>
 
               <article className="feature-card panel">
-                <span className="feature-icon pink"><ShieldCheck /></span>
+                <span className="feature-icon pink">
+                  <ShieldCheck />
+                </span>
+
                 <h3>Privacy-minded</h3>
+
                 <p>
-                  Clear preview labels and fictional data keep the purpose of
-                  this demo transparent.
+                  Clear preview labels and fictional data
+                  keep the purpose of this demo transparent.
                 </p>
               </article>
 
               <article className="feature-card panel">
-                <span className="feature-icon violet"><Activity /></span>
+                <span className="feature-icon violet">
+                  <Activity />
+                </span>
+
                 <h3>Smart controls</h3>
+
                 <p>
-                  Refresh, copy and manage sample messages in one focused
-                  space.
+                  Refresh, copy and manage sample messages
+                  in one focused space.
                 </p>
               </article>
 
               <article className="feature-card panel">
-                <span className="feature-icon blue"><Globe2 /></span>
+                <span className="feature-icon blue">
+                  <Globe2 />
+                </span>
+
                 <h3>Works on any screen</h3>
+
                 <p>
-                  A responsive layout designed for phones, tablets and desktop
-                  screens.
+                  A responsive layout designed for phones,
+                  tablets and desktop screens.
                 </p>
               </article>
             </div>
@@ -616,22 +952,39 @@ export default function Home() {
                 <ShieldCheck size={74} />
                 <span />
               </div>
+
               <div className="about-orbit" />
             </div>
 
             <div>
-              <span className="kicker">ABOUT FIND MALI</span>
-              <h2>A simpler way to explore your inbox.</h2>
+              <span className="kicker">
+                ABOUT FIND MALI
+              </span>
+
+              <h2>
+                A simpler way to explore your inbox.
+              </h2>
+
               <p>
-                FIND MALI is being shaped around a clear, approachable inbox
-                experience. This current build is a frontend concept, with
-                sample-only content so you can explore the design and
+                FIND MALI is being shaped around a clear,
+                approachable inbox experience. This current
+                build is a frontend concept, with sample-only
+                content so you can explore the design and
                 interactions.
               </p>
+
               <ul>
-                <li><Check /> Clean and simple interface</li>
-                <li><Check /> Mobile-friendly experience</li>
-                <li><Check /> Transparent preview status</li>
+                <li>
+                  <Check /> Clean and simple interface
+                </li>
+
+                <li>
+                  <Check /> Mobile-friendly experience
+                </li>
+
+                <li>
+                  <Check /> Transparent preview status
+                </li>
               </ul>
             </div>
           </section>
@@ -640,9 +993,15 @@ export default function Home() {
           <section className="faq" id="faq">
             <div className="section-heading centered">
               <div>
-                <span className="kicker">HELP CENTER</span>
+                <span className="kicker">
+                  HELP CENTER
+                </span>
+
                 <h2>Frequently asked questions</h2>
-                <p>Quick answers about this website preview.</p>
+
+                <p>
+                  Quick answers about this website preview.
+                </p>
               </div>
             </div>
 
@@ -650,20 +1009,27 @@ export default function Home() {
               {faqs.map(([question, answer], index) => (
                 <div
                   className={
-                    faqOpen === index ? 'faq-item opened' : 'faq-item'
+                    faqOpen === index
+                      ? 'faq-item opened'
+                      : 'faq-item'
                   }
                   key={question}
                 >
                   <button
                     onClick={() =>
-                      setFaqOpen(faqOpen === index ? -1 : index)
+                      setFaqOpen(
+                        faqOpen === index ? -1 : index
+                      )
                     }
                     aria-expanded={faqOpen === index}
                   >
                     <span>{question}</span>
                     <ChevronDown size={18} />
                   </button>
-                  {faqOpen === index && <p>{answer}</p>}
+
+                  {faqOpen === index && (
+                    <p>{answer}</p>
+                  )}
                 </div>
               ))}
             </div>
@@ -671,14 +1037,23 @@ export default function Home() {
 
           {/* CALL TO ACTION */}
           <section className="closing-cta">
-            <div className="cta-icon"><Send size={27} /></div>
+            <div className="cta-icon">
+              <Send size={27} />
+            </div>
+
             <div>
-              <span className="kicker">READY TO TAKE A LOOK?</span>
+              <span className="kicker">
+                READY TO TAKE A LOOK?
+              </span>
+
               <h2>Your next inbox starts here.</h2>
+
               <p>
-                Explore the FIND MALI preview and see how it feels.
+                Explore the FIND MALI preview and see how
+                it feels.
               </p>
             </div>
+
             <a className="button primary" href="#inbox">
               Get Started <ArrowRight size={16} />
             </a>
@@ -688,14 +1063,19 @@ export default function Home() {
         {/* FOOTER */}
         <footer>
           <Link className="brand footer-brand" href="/">
-            <span className="brand-mark"><Mail size={21} /></span>
+            <span className="brand-mark">
+              <Mail size={21} />
+            </span>
+
             <span>
               FIND <b>MALI</b>
               <small>YOUR INBOX, SIMPLIFIED</small>
             </span>
           </Link>
 
-          <span>© 2026 FIND MALI. Frontend preview.</span>
+          <span>
+            © 2026 FIND MALI. Frontend preview.
+          </span>
 
           <div className="footer-links">
             <Link href="/privacy">Privacy</Link>
