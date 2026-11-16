@@ -2090,3 +2090,68 @@ button:disabled:hover {
     transition: none;
   }
 }
+
+/* =========================================
+   FIND MALI - INBOX SEARCH
+========================================= */
+
+.inbox-search {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 45px;
+  padding: 0 14px;
+  margin: 15px 0;
+  border: 1px solid rgba(80, 126, 190, .25);
+  border-radius: 10px;
+  background: rgba(5, 16, 35, .75);
+  color: var(--cyan);
+  transition: border-color .2s, box-shadow .2s;
+}
+
+.inbox-search:focus-within {
+  border-color: rgba(0, 220, 255, .65);
+  box-shadow: 0 0 18px rgba(0, 220, 255, .08);
+}
+
+.inbox-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #e6efff;
+  font: 12px 'DM Sans', sans-serif;
+}
+
+.inbox-search input::placeholder {
+  color: #778eaf;
+}
+
+.inbox-search button {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: rgba(0, 220, 255, .08);
+  color: var(--cyan);
+  cursor: pointer;
+}
+
+.inbox-search button:hover {
+  background: rgba(0, 220, 255, .17);
+}
+
+@media (max-width: 680px) {
+  .inbox-search {
+    min-height: 43px;
+    margin: 12px 0;
+  }
+
+  .inbox-search input {
+    font-size: 11px;
+  }
+}
