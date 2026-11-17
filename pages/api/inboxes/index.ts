@@ -19,24 +19,41 @@ export default async function handler(
     });
   }
 
-  const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
+  const publishableKey =
+    process.env.SUPABASE_PUBLISHABLE_KEY;
 
-  if (!publishableKey) {
+  const proxyToken =
+    process.env.INBOX_PROXY_TOKEN;
+
+  if (!publishableKey || !proxyToken) {
     return res.status(503).json({
       success: false,
       message: 'Inbox service is not configured',
     });
   }
 
-  // Forward the visitor IP to the Supabase Edge Function
-  // so the server-side rate limit can be applied.
-  const forwardedHeader = req.headers['x-forwarded-for'];
+  // Vercel overwrites this header with the visitor's public IP.
+  const forwardedIp = req.headers['x-forwarded-for'];
 
-  const clientIp = Array.isArray(forwardedHeader)
-    ? forwardedHeader[0]
-    : typeof forwardedHeader === 'string'
-      ? forwardedHeader.split(',')[0].trim()
+  const clientIp = Array.isArray(forwardedIp)
+    ? forwardedIp[0]?.trim()
+    : typeof forwardedIp === 'string'
+      ? forwardedIp.trim()
       : '';
+
+  // Accept only a single valid IP address.
+  const isIPv4 =
+    /^(?:\d{1,3}\.){3}\d{1,3}$/.test(clientIp) &&
+    clientIp.split('.').every(
+      (part) => Number(part) >= 0 && Number(part) <= 255
+    );
+
+  const isIPv6 =
+    /^[0-9a-f:]+$/i.test(clientIp) &&
+    clientIp.includes(':');
+
+  const safeIp =
+    isIPv4 || isIPv6 ? clientIp : '';
 
   try {
     const upstream = await fetch(FUNCTION_URL, {
@@ -44,9 +61,13 @@ export default async function handler(
       headers: {
         'Content-Type': 'application/json',
         apikey: publishableKey,
-        ...(clientIp ? { 'x-forwarded-for': clientIp } : {}),
+        'x-inbox-proxy-token': proxyToken,
+        ...(safeIp
+          ? { 'x-vercel-forwarded-for': safeIp }
+          : {}),
       },
       body: JSON.stringify({}),
+      cache: 'no-store',
     });
 
     const data = await upstream.json().catch(() => ({}));
