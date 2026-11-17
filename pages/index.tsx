@@ -558,7 +558,7 @@ export default function Home() {
     ],
     [
       'How long is an inbox active?',
-      'Each temporary inbox currently expires after 10 minutes.',
+      'Each temporary inbox remains active for 60 minutes.',
     ],
     [
       'Can I use it on my phone?',
@@ -702,7 +702,7 @@ export default function Home() {
 
                 <div>
                   <Clock3 />
-                  <b>10 Min</b>
+                  <b>60 Min</b>
                   <small>Inbox lifetime</small>
                 </div>
 
@@ -833,7 +833,7 @@ export default function Home() {
                   <div className="progress-track">
                     <span
                       style={{
-                        width: `${Math.min(100, (remaining / 600) * 100)}%`,
+                        width: `${Math.min(100, (remaining / 3600) * 100)}%`,
                       }}
                     />
                   </div>
