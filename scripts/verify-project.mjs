@@ -46,10 +46,13 @@ const timerRowMatch = page.match(
 
 const timerRow = timerRowMatch?.[1] ?? '';
 
+// Normalize escaped characters before checking the domain.
+const normalizedMessagesApi = messagesApi.replace(/\\/g, '');
+
 const checks = [
   [
     'real findmali.com inbox domain is used',
-    /@findmali\.com/i.test(messagesApi) &&
+    /@findmali\.com/i.test(normalizedMessagesApi) &&
       page.includes("fetch('/api/inboxes'") &&
       page.includes('/api/inboxes/'),
   ],
