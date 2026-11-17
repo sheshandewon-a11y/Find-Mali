@@ -2,6 +2,7 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import { Turnstile } from '@marsidev/react-turnstile';
 import {
   Activity, ArrowRight, Check, ChevronDown, Clock3,
   Copy, Globe2, Inbox, LockKeyhole, Mail, Menu,
@@ -26,6 +27,11 @@ export default function Home() {
   const [remaining, setRemaining] = useState(0);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
 
+  // Local countdown target for newly created inboxes.
+  // Restored inboxes continue using the server expiry timestamp.
+  const [countdownEndsAt, setCountdownEndsAt] =
+    useState<number | null>(null);
+
   const [hydrated, setHydrated] = useState(false);
   const [copied, setCopied] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -37,10 +43,22 @@ export default function Home() {
 
   const [faqOpen, setFaqOpen] = useState(0);
   const [creatingInbox, setCreatingInbox] = useState(false);
+
+  // CAPTCHA state
+  const [captchaOpen, setCaptchaOpen] = useState(false);
+  const [captchaSiteKey, setCaptchaSiteKey] = useState('');
+  const [captchaLoading, setCaptchaLoading] = useState(false);
+  const [captchaVerifying, setCaptchaVerifying] = useState(false);
+  const [captchaError, setCaptchaError] = useState('');
+  const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
+
   const initializationStarted = useRef(false);
+  const expiryHandled = useRef(false);
 
   // CREATE A REAL INBOX THROUGH THE SERVER API
   async function createRealInbox() {
+    if (creatingInbox) return;
+
     setCreatingInbox(true);
 
     try {
@@ -89,14 +107,15 @@ export default function Home() {
       setEmails([]);
       setSelected(null);
       setSearchQuery('');
+
       setExpiresAt(expiry);
 
-      setRemaining(
-        Math.max(
-          0,
-          Math.ceil((expiry - Date.now()) / 1000)
-        )
-      );
+      // Start the visible countdown at exactly 60:00.
+      setCountdownEndsAt(Date.now() + 3600 * 1000);
+      setRemaining(3600);
+
+      // Allow the next expiry to be handled.
+      expiryHandled.current = false;
 
       setNotice('Your new temporary inbox is ready.');
     } catch (error) {
@@ -113,6 +132,7 @@ export default function Home() {
   // RESTORE THE ACTIVE INBOX OR CREATE ONE AUTOMATICALLY
   useEffect(() => {
     if (initializationStarted.current) return;
+
     initializationStarted.current = true;
 
     async function restoreOrCreateInbox() {
@@ -133,6 +153,7 @@ export default function Home() {
             localStorage.removeItem(
               'findmali_active_inbox'
             );
+
             stored = {};
           }
 
@@ -172,6 +193,10 @@ export default function Home() {
 
               setAddress(result.email || savedEmail);
               setExpiresAt(expiry);
+
+              // Restored inboxes use the server expiry.
+              setCountdownEndsAt(null);
+              expiryHandled.current = false;
 
               setRemaining(
                 Math.max(
@@ -228,6 +253,7 @@ export default function Home() {
         }
 
         // First visit or expired inbox.
+        // No CAPTCHA is required for automatic creation.
         await createRealInbox();
       } catch (error) {
         setNotice(
@@ -248,12 +274,27 @@ export default function Home() {
     if (!hydrated || expiresAt === null) return;
 
     const updateTimer = () => {
+      const deadline = countdownEndsAt ?? expiresAt;
+
       const seconds = Math.max(
         0,
-        Math.ceil((expiresAt - Date.now()) / 1000)
+        Math.ceil((deadline - Date.now()) / 1000)
       );
 
       setRemaining(seconds);
+
+      // Automatically replace expired inbox without CAPTCHA.
+      if (seconds <= 0 && !expiryHandled.current) {
+        expiryHandled.current = true;
+
+        localStorage.removeItem('findmali_active_inbox');
+
+        setNotice(
+          'Your inbox has expired. Creating a new inbox...'
+        );
+
+        void createRealInbox();
+      }
     };
 
     updateTimer();
@@ -276,7 +317,7 @@ export default function Home() {
         updateTimer
       );
     };
-  }, [hydrated, expiresAt]);
+  }, [hydrated, expiresAt, countdownEndsAt]);
 
   // MOBILE MENU ESCAPE SUPPORT
   useEffect(() => {
@@ -345,13 +386,113 @@ export default function Home() {
     }
   }
 
-  // NEW MAIL BUTTON
+  // OPEN CAPTCHA FOR MANUAL NEW MAIL
   async function newInbox() {
-    if (creatingInbox) return;
+    if (
+      creatingInbox ||
+      captchaLoading ||
+      captchaVerifying
+    ) {
+      return;
+    }
 
-    setNotice('Creating your new temporary inbox...');
+    setCaptchaOpen(true);
+    setCaptchaLoading(true);
+    setCaptchaError('');
+    setCaptchaSiteKey('');
 
-    await createRealInbox();
+    try {
+      const response = await fetch(
+        '/api/turnstile-config',
+        {
+          method: 'GET',
+          cache: 'no-store',
+        }
+      );
+
+      const result = await response
+        .json()
+        .catch(() => ({}));
+
+      if (
+        !response.ok ||
+        result.success !== true ||
+        !result.siteKey
+      ) {
+        throw new Error(
+          result.message ||
+            'CAPTCHA is unavailable. Please check configuration.'
+        );
+      }
+
+      setCaptchaSiteKey(result.siteKey);
+    } catch (error) {
+      setCaptchaError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to load CAPTCHA.'
+      );
+    } finally {
+      setCaptchaLoading(false);
+    }
+  }
+
+  // VERIFY CAPTCHA AND CREATE INBOX
+  async function handleCaptchaSuccess(token: string) {
+    if (captchaVerifying || creatingInbox) return;
+
+    setCaptchaVerifying(true);
+    setCaptchaError('');
+
+    try {
+      const response = await fetch(
+        '/api/turnstile-verify',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ token }),
+          cache: 'no-store',
+        }
+      );
+
+      const result = await response
+        .json()
+        .catch(() => ({}));
+
+      if (
+        !response.ok ||
+        result.success !== true
+      ) {
+        throw new Error(
+          result.message ||
+            'Verification failed. Please try again.'
+        );
+      }
+
+      setCaptchaOpen(false);
+      setCaptchaSiteKey('');
+      setCaptchaError('');
+      setCaptchaWidgetKey((value) => value + 1);
+
+      setNotice(
+        'Creating your new temporary inbox...'
+      );
+
+      await createRealInbox();
+    } catch (error) {
+      setCaptchaError(
+        error instanceof Error
+          ? error.message
+          : 'Verification failed. Please try again.'
+      );
+
+      // Reset the widget so the user can retry.
+      setCaptchaWidgetKey((value) => value + 1);
+    } finally {
+      setCaptchaVerifying(false);
+    }
   }
 
   // CLOSE THE CURRENT INBOX VIEW
@@ -362,7 +503,14 @@ export default function Home() {
     setSelected(null);
     setRemaining(0);
     setExpiresAt(null);
+    setCountdownEndsAt(null);
     setSearchQuery('');
+
+    expiryHandled.current = false;
+
+    setCaptchaOpen(false);
+    setCaptchaSiteKey('');
+    setCaptchaError('');
 
     localStorage.removeItem(
       'findmali_active_inbox'
@@ -403,12 +551,16 @@ export default function Home() {
           setEmails([]);
           setSelected(null);
           setExpiresAt(null);
+          setCountdownEndsAt(null);
           setRemaining(0);
+
+          expiryHandled.current = false;
 
           setNotice(
             'Your inbox has expired. Creating a new inbox...'
           );
 
+          // Automatic replacement does not require CAPTCHA.
           await createRealInbox();
           return;
         }
@@ -516,7 +668,7 @@ export default function Home() {
     ],
     [
       'Do I need to create an account?',
-      'No account or CAPTCHA is needed. A temporary inbox is created automatically.',
+      'No account is needed. An inbox is created automatically on your first visit and when it expires. CAPTCHA verification is required when you manually create another inbox using New Mail.',
     ],
     [
       'How long is an inbox active?',
@@ -816,7 +968,7 @@ export default function Home() {
 
                   <button
                     onClick={newInbox}
-                    disabled={creatingInbox}
+                    disabled={creatingInbox || captchaLoading || captchaVerifying}
                   >
                     <Plus size={17} />
                     {creatingInbox ? 'Creating...' : 'New Mail'}
@@ -832,6 +984,60 @@ export default function Home() {
                   <button onClick={resetPreview}>
                     <RefreshCw size={16} /> Close Inbox
                   </button>
+
+                  {/* CAPTCHA OVERLAY */}
+                  {captchaOpen && (
+                    <div className="captcha-overlay">
+                      <div className="captcha-dialog">
+                        <div className="captcha-heading">
+                          <ShieldCheck size={20} />
+                          <strong>Security Verification</strong>
+                        </div>
+
+                        <p>
+                          Complete the verification below to create your new inbox.
+                        </p>
+
+                        {captchaLoading && (
+                          <p>Loading CAPTCHA...</p>
+                        )}
+
+                        {captchaError && (
+                          <p role="alert">
+                            {captchaError}
+                          </p>
+                        )}
+
+                        {captchaSiteKey && !captchaLoading && (
+                          <Turnstile
+                            key={captchaWidgetKey}
+                            siteKey={captchaSiteKey}
+                            onSuccess={handleCaptchaSuccess}
+                            onError={() => {
+                              setCaptchaError(
+                                'CAPTCHA verification is unavailable. Please try again.'
+                              );
+                            }}
+                            onExpire={() => {
+                              setCaptchaError(
+                                'Verification expired. Please complete it again.'
+                              );
+                            }}
+                            options={{
+                              theme: 'dark',
+                              size: 'normal',
+                            }}
+                          />
+                        )}
+
+                        {captchaVerifying && (
+                          <p>
+                            Verifying your response...
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
