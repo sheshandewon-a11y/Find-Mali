@@ -1,8 +1,7 @@
 
 import Head from 'next/head';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { Turnstile } from '@marsidev/react-turnstile';
+import { useEffect, useRef, useState } from 'react';
 import {
   Activity, ArrowRight, Check, ChevronDown, Clock3,
   Copy, Globe2, Inbox, LockKeyhole, Mail, Menu,
@@ -33,85 +32,215 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const [notice, setNotice] = useState(
-    'Create a new inbox to get started.'
+    'Creating your temporary inbox...'
   );
 
   const [faqOpen, setFaqOpen] = useState(0);
-
-  // TURNSTILE STATE
-  const [siteKey, setSiteKey] = useState('');
-  const [siteKeyLoading, setSiteKeyLoading] = useState(true);
-  const [showTurnstile, setShowTurnstile] = useState(false);
-  const [, setTurnstileToken] = useState('');
   const [creatingInbox, setCreatingInbox] = useState(false);
-  const [isMobileLayout, setIsMobileLayout] = useState(false);
+  const initializationStarted = useRef(false);
 
-  // RESPONSIVE CAPTCHA POSITION
+  // CREATE A REAL INBOX THROUGH THE SERVER API
+  async function createRealInbox() {
+    setCreatingInbox(true);
+
+    try {
+      const response = await fetch('/api/inboxes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (
+        !response.ok ||
+        result.success !== true ||
+        !result.inbox
+      ) {
+        throw new Error(
+          result.message || 'Unable to create inbox'
+        );
+      }
+
+      const inbox = result.inbox;
+      const expiry = new Date(inbox.expires_at).getTime();
+
+      if (
+        !inbox.email_address ||
+        !Number.isFinite(expiry)
+      ) {
+        throw new Error(
+          'The inbox service returned incomplete data'
+        );
+      }
+
+      setAddress(inbox.email_address);
+
+      localStorage.setItem(
+        'findmali_active_inbox',
+        JSON.stringify({
+          email_address: inbox.email_address,
+          expires_at: inbox.expires_at,
+        })
+      );
+
+      setEmails([]);
+      setSelected(null);
+      setSearchQuery('');
+      setExpiresAt(expiry);
+
+      setRemaining(
+        Math.max(
+          0,
+          Math.ceil((expiry - Date.now()) / 1000)
+        )
+      );
+
+      setNotice('Your new temporary inbox is ready.');
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : 'Unable to create inbox. Please try again.'
+      );
+    } finally {
+      setCreatingInbox(false);
+    }
+  }
+
+  // RESTORE THE ACTIVE INBOX OR CREATE ONE AUTOMATICALLY
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 680px)');
+    if (initializationStarted.current) return;
+    initializationStarted.current = true;
 
-    const updateLayout = () => {
-      setIsMobileLayout(media.matches);
-    };
-
-    updateLayout();
-    media.addEventListener('change', updateLayout);
-
-    return () => {
-      media.removeEventListener('change', updateLayout);
-    };
-  }, []);
-
-  // LOAD TURNSTILE SITE KEY
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadTurnstileConfig() {
+    async function restoreOrCreateInbox() {
       try {
-        const response = await fetch('/api/turnstile-config', {
-          method: 'GET',
-          headers: {
-            Accept: 'application/json',
-          },
-          cache: 'no-store',
-        });
+        const saved = localStorage.getItem(
+          'findmali_active_inbox'
+        );
 
-        if (!response.ok) {
-          throw new Error('Turnstile configuration unavailable');
+        if (saved) {
+          let stored: {
+            email_address?: string;
+            expires_at?: string;
+          };
+
+          try {
+            stored = JSON.parse(saved);
+          } catch {
+            localStorage.removeItem(
+              'findmali_active_inbox'
+            );
+            stored = {};
+          }
+
+          const savedEmail = stored.email_address || '';
+
+          const savedExpiry = stored.expires_at
+            ? new Date(stored.expires_at).getTime()
+            : 0;
+
+          if (
+            savedEmail &&
+            /^[a-z0-9-]{3,32}@findmali\.com$/i.test(savedEmail) &&
+            savedExpiry > Date.now()
+          ) {
+            const response = await fetch(
+              `/api/inboxes/${encodeURIComponent(savedEmail)}/messages`,
+              {
+                method: 'GET',
+                cache: 'no-store',
+              }
+            );
+
+            const result = await response
+              .json()
+              .catch(() => ({}));
+
+            if (response.ok && result.success === true) {
+              const expiry = new Date(
+                result.expires_at
+              ).getTime();
+
+              if (!Number.isFinite(expiry)) {
+                throw new Error(
+                  'Invalid inbox expiry returned by server'
+                );
+              }
+
+              setAddress(result.email || savedEmail);
+              setExpiresAt(expiry);
+
+              setRemaining(
+                Math.max(
+                  0,
+                  Math.ceil((expiry - Date.now()) / 1000)
+                )
+              );
+
+              const restoredMessages: InboxMessage[] = (
+                result.messages || []
+              ).map((message: any) => ({
+                id: Number(message.id),
+                sender: message.sender || 'Unknown sender',
+                subject: message.subject || '(No subject)',
+                body: message.body || '',
+                time: message.received_at
+                  ? new Date(
+                      message.received_at
+                    ).toLocaleString()
+                  : '',
+                unread: true,
+                tag: 'Email',
+              }));
+
+              setEmails(restoredMessages);
+
+              localStorage.setItem(
+                'findmali_active_inbox',
+                JSON.stringify({
+                  email_address: result.email || savedEmail,
+                  expires_at: result.expires_at,
+                })
+              );
+
+              setNotice(
+                'Your previous inbox has been restored.'
+              );
+
+              return;
+            }
+
+            // Only create another inbox if the old one has expired.
+            if (response.status !== 404) {
+              throw new Error(
+                result.message ||
+                  'Unable to restore your previous inbox.'
+              );
+            }
+          }
+
+          localStorage.removeItem(
+            'findmali_active_inbox'
+          );
         }
 
-        const data = await response.json();
-
-        if (
-          !cancelled &&
-          typeof data.siteKey === 'string' &&
-          data.siteKey.length > 0
-        ) {
-          setSiteKey(data.siteKey);
-        } else if (!cancelled) {
-          setNotice('Turnstile Site Key is not configured');
-        }
-      } catch {
-        if (!cancelled) {
-          setNotice('Unable to load CAPTCHA configuration');
-        }
+        // First visit or expired inbox.
+        await createRealInbox();
+      } catch (error) {
+        setNotice(
+          error instanceof Error
+            ? error.message
+            : 'Unable to load your inbox. Please try again.'
+        );
       } finally {
-        if (!cancelled) {
-          setSiteKeyLoading(false);
-        }
+        setHydrated(true);
       }
     }
 
-    loadTurnstileConfig();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // CLIENT READY
-  useEffect(() => {
-    setHydrated(true);
+    void restoreOrCreateInbox();
   }, []);
 
   // AUTOMATIC SESSION TIMER
@@ -129,13 +258,23 @@ export default function Home() {
 
     updateTimer();
 
-    const timer = window.setInterval(updateTimer, 1000);
+    const timer = window.setInterval(
+      updateTimer,
+      1000
+    );
 
-    document.addEventListener('visibilitychange', updateTimer);
+    document.addEventListener(
+      'visibilitychange',
+      updateTimer
+    );
 
     return () => {
       window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', updateTimer);
+
+      document.removeEventListener(
+        'visibilitychange',
+        updateTimer
+      );
     };
   }, [hydrated, expiresAt]);
 
@@ -152,7 +291,10 @@ export default function Home() {
     window.addEventListener('keydown', handleEscape);
 
     return () => {
-      window.removeEventListener('keydown', handleEscape);
+      window.removeEventListener(
+        'keydown',
+        handleEscape
+      );
     };
   }, [mobileMenu]);
 
@@ -182,7 +324,7 @@ export default function Home() {
   // COPY ADDRESS
   async function copyAddress() {
     if (!address) {
-      setNotice('Create an inbox first.');
+      setNotice('Your inbox is still being created.');
       return;
     }
 
@@ -192,236 +334,24 @@ export default function Home() {
       setCopied(true);
       setNotice('Inbox address copied to clipboard');
 
-      window.setTimeout(() => setCopied(false), 1600);
-    } catch {
-      setNotice('Clipboard is not available in this browser');
-    }
-  }
-
-  // CREATE A REAL INBOX THROUGH THE SERVER API
-  async function createRealInbox(token: string) {
-    try {
-      const response = await fetch('/api/inboxes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ token }),
-      });
-
-      const result = await response.json().catch(() => ({}));
-
-      if (
-        !response.ok ||
-        result.success !== true ||
-        !result.inbox
-      ) {
-        throw new Error(
-          result.message || 'Unable to create inbox'
-        );
-      }
-
-      const inbox = result.inbox;
-      const expiry = new Date(inbox.expires_at).getTime();
-
-      if (
-        !inbox.email_address ||
-        !Number.isFinite(expiry)
-      ) {
-        throw new Error(
-          'The inbox service returned incomplete data'
-        );
-      }
-
-      setAddress(inbox.email_address);
-      setEmails([]);
-      setSelected(null);
-      setSearchQuery('');
-
-      setExpiresAt(expiry);
-
-      setRemaining(
-        Math.max(
-          0,
-          Math.ceil((expiry - Date.now()) / 1000)
-        )
+      window.setTimeout(
+        () => setCopied(false),
+        1600
       );
-
-      setShowTurnstile(false);
-      setTurnstileToken('');
-      setCreatingInbox(false);
-
-      setNotice('Your new temporary inbox is ready.');
-    } catch (error) {
-      setTurnstileToken('');
-      setCreatingInbox(false);
-      setShowTurnstile(false);
-
+    } catch {
       setNotice(
-        error instanceof Error
-          ? error.message
-          : 'Unable to create inbox. Please try again.'
+        'Clipboard is not available in this browser'
       );
     }
   }
 
   // NEW MAIL BUTTON
-  function newInbox() {
-    if (siteKeyLoading) {
-      setNotice(
-        'Loading CAPTCHA configuration. Please wait.'
-      );
-      return;
-    }
+  async function newInbox() {
+    if (creatingInbox) return;
 
-    if (!siteKey) {
-      setNotice(
-        'CAPTCHA is unavailable. Please check configuration.'
-      );
-      return;
-    }
+    setNotice('Creating your new temporary inbox...');
 
-    setTurnstileToken('');
-    setShowTurnstile(true);
-
-    setNotice(
-      'Please complete the security check to continue.'
-    );
-  }
-
-  // TURNSTILE SUCCESS
-  async function handleTurnstileSuccess(token: string) {
-    if (!token) {
-      setNotice(
-        'CAPTCHA verification did not return a token'
-      );
-      return;
-    }
-
-    setTurnstileToken(token);
-    setCreatingInbox(true);
-
-    setNotice(
-      'Verifying security check and creating inbox...'
-    );
-
-    await createRealInbox(token);
-  }
-
-  // TURNSTILE ERROR
-  function handleTurnstileError() {
-    setTurnstileToken('');
-    setCreatingInbox(false);
-
-    setNotice('CAPTCHA error. Please try again.');
-  }
-
-  // SHARED CAPTCHA OVERLAY
-  function renderTurnstileOverlay() {
-    if (!showTurnstile) return null;
-
-    return (
-      <div
-        className="turnstile-overlay"
-        role="dialog"
-        aria-label="Security check"
-        aria-modal="true"
-        style={{
-          position: 'absolute',
-          inset: 0,
-          zIndex: 50,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '14px',
-          borderRadius: 'inherit',
-          background: 'rgba(4, 10, 27, 0.66)',
-          backdropFilter: 'blur(9px)',
-          WebkitBackdropFilter: 'blur(9px)',
-        }}
-      >
-        <div
-          className="turnstile-dialog"
-          style={{
-            width: 'min(100%, 390px)',
-            boxSizing: 'border-box',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '18px 14px',
-            border: '1px solid rgba(0, 220, 255, 0.3)',
-            borderRadius: '16px',
-            background: 'rgba(7, 17, 39, 0.97)',
-            boxShadow: '0 16px 50px rgba(0, 0, 0, 0.4)',
-            textAlign: 'center',
-          }}
-        >
-          <div>
-            <strong
-              style={{
-                display: 'block',
-                color: '#f4fbff',
-                fontSize: '15px',
-              }}
-            >
-              Security check
-            </strong>
-
-            <p
-              style={{
-                margin: '5px 0 0',
-                color: '#a8bfd3',
-                fontSize: '12px',
-              }}
-            >
-              Complete the check to create your new inbox.
-            </p>
-          </div>
-
-          {siteKey ? (
-            <Turnstile
-              siteKey={siteKey}
-              onSuccess={handleTurnstileSuccess}
-              onExpire={() => {
-                setTurnstileToken('');
-                setCreatingInbox(false);
-
-                setNotice(
-                  'CAPTCHA expired. Please try again.'
-                );
-              }}
-              onError={handleTurnstileError}
-              options={{
-                theme: 'dark',
-                size: 'normal',
-              }}
-            />
-          ) : (
-            <p
-              role="alert"
-              style={{
-                color: '#ff9aa9',
-                fontSize: '13px',
-              }}
-            >
-              CAPTCHA configuration is unavailable.
-            </p>
-          )}
-
-          {creatingInbox && (
-            <span
-              style={{
-                color: '#9fefff',
-                fontSize: '12px',
-              }}
-            >
-              Creating your inbox...
-            </span>
-          )}
-        </div>
-      </div>
-    );
+    await createRealInbox();
   }
 
   // CLOSE THE CURRENT INBOX VIEW
@@ -434,8 +364,9 @@ export default function Home() {
     setExpiresAt(null);
     setSearchQuery('');
 
-    setShowTurnstile(false);
-    setTurnstileToken('');
+    localStorage.removeItem(
+      'findmali_active_inbox'
+    );
 
     setNotice(
       'Inbox view closed. Create a new inbox to continue.'
@@ -458,9 +389,30 @@ export default function Home() {
         }
       );
 
-      const result = await response.json().catch(() => ({}));
+      const result = await response
+        .json()
+        .catch(() => ({}));
 
       if (!response.ok || result.success !== true) {
+        if (response.status === 404) {
+          localStorage.removeItem(
+            'findmali_active_inbox'
+          );
+
+          setAddress('');
+          setEmails([]);
+          setSelected(null);
+          setExpiresAt(null);
+          setRemaining(0);
+
+          setNotice(
+            'Your inbox has expired. Creating a new inbox...'
+          );
+
+          await createRealInbox();
+          return;
+        }
+
         throw new Error(
           result.message || 'Unable to refresh inbox'
         );
@@ -474,7 +426,9 @@ export default function Home() {
         subject: message.subject || '(No subject)',
         body: message.body || '',
         time: message.received_at
-          ? new Date(message.received_at).toLocaleString()
+          ? new Date(
+              message.received_at
+            ).toLocaleString()
           : '',
         unread: true,
         tag: 'Email',
@@ -488,6 +442,14 @@ export default function Home() {
 
       if (Number.isFinite(expiry)) {
         setExpiresAt(expiry);
+
+        localStorage.setItem(
+          'findmali_active_inbox',
+          JSON.stringify({
+            email_address: result.email || address,
+            expires_at: result.expires_at,
+          })
+        );
       }
 
       setSelected(null);
@@ -554,7 +516,7 @@ export default function Home() {
     ],
     [
       'Do I need to create an account?',
-      'No account is needed. Complete the security check to create a temporary inbox.',
+      'No account or CAPTCHA is needed. A temporary inbox is created automatically.',
     ],
     [
       'How long is an inbox active?',
@@ -634,7 +596,9 @@ export default function Home() {
 
           <button
             className="mobile-toggle"
-            onClick={() => setMobileMenu((value) => !value)}
+            onClick={() =>
+              setMobileMenu((value) => !value)
+            }
             aria-label="Toggle navigation"
             aria-expanded={mobileMenu}
             aria-controls="main-navigation"
@@ -805,7 +769,7 @@ export default function Home() {
                     <div className="address-value">
                       <Mail size={18} />
                       <strong>
-                        {address || 'Create a new inbox'}
+                        {address || 'Creating a new inbox...'}
                       </strong>
                     </div>
 
@@ -852,10 +816,10 @@ export default function Home() {
 
                   <button
                     onClick={newInbox}
-                    disabled={siteKeyLoading || creatingInbox}
+                    disabled={creatingInbox}
                   >
                     <Plus size={17} />
-                    {siteKeyLoading ? 'Loading...' : 'New Mail'}
+                    {creatingInbox ? 'Creating...' : 'New Mail'}
                   </button>
 
                   <button
@@ -868,9 +832,6 @@ export default function Home() {
                   <button onClick={resetPreview}>
                     <RefreshCw size={16} /> Close Inbox
                   </button>
-
-                  {/* MOBILE CAPTCHA OVERLAY */}
-                  {isMobileLayout && renderTurnstileOverlay()}
                 </div>
               </div>
 
@@ -879,9 +840,6 @@ export default function Home() {
                 className="recent-area"
                 style={{ position: 'relative' }}
               >
-                {/* DESKTOP CAPTCHA OVERLAY */}
-                {!isMobileLayout && renderTurnstileOverlay()}
-
                 <div className="recent-head">
                   <h3>
                     {activeEmail ? (
