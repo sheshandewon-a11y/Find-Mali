@@ -1,3 +1,4 @@
+
 import type { NextApiRequest, NextApiResponse } from 'next';
 
 const FUNCTION_BASE =
@@ -20,9 +21,10 @@ export default async function handler(
 
   const email = req.query.email;
 
+  // Accept name-based addresses while keeping the domain fixed.
   if (
     typeof email !== 'string' ||
-    !/^[a-f0-9]{12}@findmali\.com$/i.test(email)
+    !/^[a-z0-9-]{3,32}@findmali\.com$/i.test(email)
   ) {
     return res.status(400).json({
       success: false,
