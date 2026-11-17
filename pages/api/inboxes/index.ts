@@ -1,3 +1,4 @@
+
 import type { NextApiRequest, NextApiResponse } from 'next';
 
 const FUNCTION_URL =
@@ -11,6 +12,7 @@ export default async function handler(
 
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
+
     return res.status(405).json({
       success: false,
       message: 'Method not allowed',
@@ -26,18 +28,15 @@ export default async function handler(
     });
   }
 
-  const token = req.body?.token;
+  // Forward the visitor IP to the Supabase Edge Function
+  // so the server-side rate limit can be applied.
+  const forwardedHeader = req.headers['x-forwarded-for'];
 
-  if (
-    typeof token !== 'string' ||
-    token.length < 1 ||
-    token.length > 2048
-  ) {
-    return res.status(400).json({
-      success: false,
-      message: 'A valid CAPTCHA token is required',
-    });
-  }
+  const clientIp = Array.isArray(forwardedHeader)
+    ? forwardedHeader[0]
+    : typeof forwardedHeader === 'string'
+      ? forwardedHeader.split(',')[0].trim()
+      : '';
 
   try {
     const upstream = await fetch(FUNCTION_URL, {
@@ -45,8 +44,9 @@ export default async function handler(
       headers: {
         'Content-Type': 'application/json',
         apikey: publishableKey,
+        ...(clientIp ? { 'x-forwarded-for': clientIp } : {}),
       },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({}),
     });
 
     const data = await upstream.json().catch(() => ({}));
