@@ -2,29 +2,12 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { Turnstile } from '@marsidev/react-turnstile';
 import {
-  Activity,
-  ArrowRight,
-  Check,
-  ChevronDown,
-  Clock3,
-  Copy,
-  Globe2,
-  Inbox,
-  LockKeyhole,
-  Mail,
-  Menu,
-  Plus,
-  RefreshCw,
-  ShieldCheck,
-  Sparkles,
-  Trash2,
-  X,
-  Zap,
-  Heart,
-  Eye,
-  Send,
-  ArrowLeft,
+  Activity, ArrowRight, Check, ChevronDown, Clock3,
+  Copy, Globe2, Inbox, LockKeyhole, Mail, Menu,
+  Plus, RefreshCw, ShieldCheck, Sparkles, Trash2,
+  X, Zap, Heart, Eye, Send, ArrowLeft,
 } from 'lucide-react';
 
 type DemoEmail = {
@@ -45,7 +28,7 @@ const seedEmails: DemoEmail[] = [
     sender: 'hello@sample.test',
     subject: 'Welcome to your sample inbox',
     time: 'Just now',
-    body: 'Welcome to the FIND MALI interface preview. This is a fictional sample message created to help you explore the inbox design. No external email was received.',
+    body: 'Welcome to the FIND MALI interface preview. This is a fictional sample message. No external email was received.',
     unread: true,
     tag: 'Welcome',
   },
@@ -54,7 +37,7 @@ const seedEmails: DemoEmail[] = [
     sender: 'updates@example.test',
     subject: 'Your workspace is ready to explore',
     time: '4 min ago',
-    body: 'Your sample workspace is ready. Try the search, message preview and inbox controls. All content in this preview is fictional.',
+    body: 'Your sample workspace is ready. All content in this preview is fictional.',
     unread: false,
     tag: 'Updates',
   },
@@ -63,7 +46,7 @@ const seedEmails: DemoEmail[] = [
     sender: 'team@demo.test',
     subject: 'A few tips to get started',
     time: '12 min ago',
-    body: 'Use the controls above to create a fresh demo address, copy it, or reset your sample inbox. This is a local interface demonstration only.',
+    body: 'Use the controls to explore the sample inbox. This is a local interface demonstration only.',
     unread: false,
     tag: 'Guide',
   },
@@ -86,7 +69,6 @@ export default function Home() {
   const [address, setAddress] = useState(
     'hello-visitor@demo.findmali.test'
   );
-
   const [emails, setEmails] = useState<DemoEmail[]>(seedEmails);
   const [selected, setSelected] = useState<number | null>(null);
   const [remaining, setRemaining] = useState(3600);
@@ -96,12 +78,62 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-
   const [notice, setNotice] = useState(
     'Demo environment ready · sample messages only'
   );
-
   const [faqOpen, setFaqOpen] = useState(0);
+
+  // TURNSTILE STATE
+  const [siteKey, setSiteKey] = useState('');
+  const [siteKeyLoading, setSiteKeyLoading] = useState(true);
+  const [showTurnstile, setShowTurnstile] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [creatingInbox, setCreatingInbox] = useState(false);
+
+  // LOAD TURNSTILE SITE KEY FROM SERVER
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTurnstileConfig() {
+      try {
+        const response = await fetch('/api/turnstile-config', {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        });
+
+        if (!response.ok) {
+          throw new Error('Turnstile configuration unavailable');
+        }
+
+        const data = await response.json();
+
+        if (
+          !cancelled &&
+          typeof data.siteKey === 'string' &&
+          data.siteKey.length > 0
+        ) {
+          setSiteKey(data.siteKey);
+        } else if (!cancelled) {
+          setNotice('Turnstile Site Key is not configured');
+        }
+      } catch {
+        if (!cancelled) {
+          setNotice('Unable to load CAPTCHA configuration');
+        }
+      } finally {
+        if (!cancelled) {
+          setSiteKeyLoading(false);
+        }
+      }
+    }
+
+    loadTurnstileConfig();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // LOAD SAVED DEMO DATA
   useEffect(() => {
@@ -130,10 +162,7 @@ export default function Home() {
         } else {
           const oldRemaining =
             typeof saved.remaining === 'number'
-              ? Math.max(
-                  0,
-                  Math.min(3600, Math.floor(saved.remaining))
-                )
+              ? Math.max(0, Math.min(3600, Math.floor(saved.remaining)))
               : 3600;
 
           setExpiresAt(Date.now() + oldRemaining * 1000);
@@ -145,7 +174,7 @@ export default function Home() {
       try {
         window.localStorage.removeItem(STORAGE_KEY);
       } catch {
-        // Browser storage is unavailable.
+        // Storage unavailable.
       }
 
       setExpiresAt(Date.now() + 3600 * 1000);
@@ -169,20 +198,11 @@ export default function Home() {
         })
       );
     } catch {
-      setNotice(
-        'Browser storage is unavailable; changes will not persist'
-      );
+      setNotice('Browser storage is unavailable');
     }
-  }, [
-    hydrated,
-    address,
-    emails,
-    remaining,
-    expiresAt,
-  ]);
+  }, [hydrated, address, emails, remaining, expiresAt]);
 
   // AUTOMATIC SESSION TIMER
-  // Uses a real expiry timestamp so background time is counted.
   useEffect(() => {
     if (!hydrated || expiresAt === null) return;
 
@@ -199,18 +219,11 @@ export default function Home() {
 
     const timer = window.setInterval(updateTimer, 1000);
 
-    document.addEventListener(
-      'visibilitychange',
-      updateTimer
-    );
+    document.addEventListener('visibilitychange', updateTimer);
 
     return () => {
       window.clearInterval(timer);
-
-      document.removeEventListener(
-        'visibilitychange',
-        updateTimer
-      );
+      document.removeEventListener('visibilitychange', updateTimer);
     };
   }, [hydrated, expiresAt]);
 
@@ -219,9 +232,7 @@ export default function Home() {
     if (!mobileMenu) return;
 
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setMobileMenu(false);
-      }
+      if (event.key === 'Escape') setMobileMenu(false);
     };
 
     window.addEventListener('keydown', handleEscape);
@@ -231,7 +242,6 @@ export default function Home() {
     };
   }, [mobileMenu]);
 
-  // FILTERED EMAILS
   const filteredEmails = emails.filter((email) => {
     const query = searchQuery.toLowerCase().trim();
 
@@ -254,26 +264,21 @@ export default function Home() {
     .toString()
     .padStart(2, '0')}`;
 
-  // COPY DEMO ADDRESS
+  // COPY ADDRESS
   async function copyAddress() {
     try {
       await navigator.clipboard.writeText(address);
-
       setCopied(true);
       setNotice('Demo address copied to clipboard');
 
-      window.setTimeout(() => {
-        setCopied(false);
-      }, 1600);
+      window.setTimeout(() => setCopied(false), 1600);
     } catch {
-      setNotice(
-        'Clipboard is not available in this browser'
-      );
+      setNotice('Clipboard is not available in this browser');
     }
   }
 
-  // CREATE NEW DEMO INBOX
-  function newInbox() {
+  // CREATE DEMO INBOX AFTER CAPTCHA CALLBACK
+  function createDemoInbox() {
     const newAddress =
       'visitor-' +
       Math.random().toString(36).slice(2, 7) +
@@ -288,7 +293,59 @@ export default function Home() {
     setExpiresAt(newExpiry);
     setSearchQuery('');
 
+    setShowTurnstile(false);
+    setTurnstileToken('');
+    setCreatingInbox(false);
+
     setNotice('Fresh sample inbox created');
+  }
+
+  // NEW INBOX BUTTON
+  function newInbox() {
+    if (siteKeyLoading) {
+      setNotice('Loading CAPTCHA configuration. Please wait.');
+      return;
+    }
+
+    if (!siteKey) {
+      setNotice('CAPTCHA is unavailable. Please check configuration.');
+      return;
+    }
+
+    setTurnstileToken('');
+    setShowTurnstile(true);
+    setNotice('Please complete the security check to continue.');
+  }
+
+  // TURNSTILE SUCCESS
+  function handleTurnstileSuccess(token: string) {
+    if (!token) {
+      setNotice('CAPTCHA verification did not return a token');
+      return;
+    }
+
+    setTurnstileToken(token);
+    setCreatingInbox(true);
+
+    // Frontend demo only.
+    // Server-side token verification must be added before
+    // connecting this action to real inbox creation.
+    createDemoInbox();
+  }
+
+  // TURNSTILE ERROR
+  function handleTurnstileError() {
+    setTurnstileToken('');
+    setCreatingInbox(false);
+    setNotice('CAPTCHA error. Please try again.');
+  }
+
+  // CANCEL CAPTCHA
+  function cancelTurnstile() {
+    setShowTurnstile(false);
+    setTurnstileToken('');
+    setCreatingInbox(false);
+    setNotice('Security check cancelled');
   }
 
   // RESET DEMO PREVIEW
@@ -301,10 +358,10 @@ export default function Home() {
     setRemaining(3600);
     setExpiresAt(newExpiry);
     setSearchQuery('');
+    setShowTurnstile(false);
+    setTurnstileToken('');
 
-    setNotice(
-      'Preview restored to its original sample state'
-    );
+    setNotice('Preview restored to its original sample state');
   }
 
   // REFRESH LOCAL DEMO DATA
@@ -339,16 +396,12 @@ export default function Home() {
 
       setSelected(null);
       setSearchQuery('');
-
-      setNotice(
-        'Local demo inbox refreshed successfully'
-      );
+      setNotice('Local demo inbox refreshed successfully');
     } catch {
       setNotice('Unable to refresh local demo data');
     }
   }
 
-  // OPEN MESSAGE
   function openMessage(id: number) {
     setSelected(id);
 
@@ -361,12 +414,10 @@ export default function Home() {
     );
   }
 
-  // CLOSE MESSAGE
   function closeMessage() {
     setSelected(null);
   }
 
-  // DELETE MESSAGE
   function removeMessage(id: number) {
     setEmails((value) =>
       value.filter((email) => email.id !== id)
@@ -376,12 +427,10 @@ export default function Home() {
     setNotice('Sample message removed');
   }
 
-  // CLEAR ALL MESSAGES
   function clearAllMessages() {
     setEmails([]);
     setSelected(null);
     setSearchQuery('');
-
     setNotice('All sample messages cleared');
   }
 
@@ -408,36 +457,22 @@ export default function Home() {
     <>
       <Head>
         <title>FIND MALI — Your Inbox, Simplified</title>
-
         <meta
           name="description"
           content="Explore the FIND MALI private inbox interface preview."
         />
-
         <meta name="theme-color" content="#050b1b" />
-
         <meta
           property="og:title"
           content="FIND MALI — Your Inbox, Simplified"
         />
-
         <meta
           property="og:description"
           content="Explore the FIND MALI inbox interface preview."
         />
-
         <meta property="og:type" content="website" />
-
-        <link
-          rel="icon"
-          href="/favicon.svg"
-          type="image/svg+xml"
-        />
-
-        <link
-          rel="manifest"
-          href="/manifest.webmanifest"
-        />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="manifest" href="/manifest.webmanifest" />
       </Head>
 
       <div className="site-shell">
@@ -451,7 +486,6 @@ export default function Home() {
             <span className="brand-mark">
               <Mail size={24} />
             </span>
-
             <span>
               FIND <b>MALI</b>
               <small>YOUR INBOX, SIMPLIFIED</small>
@@ -460,9 +494,7 @@ export default function Home() {
 
           <button
             className="mobile-toggle"
-            onClick={() =>
-              setMobileMenu((value) => !value)
-            }
+            onClick={() => setMobileMenu((value) => !value)}
             aria-label="Toggle navigation"
             aria-expanded={mobileMenu}
             aria-controls="main-navigation"
@@ -480,7 +512,6 @@ export default function Home() {
             <a href="#features">Features</a>
             <a href="#faq">FAQ</a>
             <a href="#about">About</a>
-
             <a className="nav-cta" href="#inbox">
               Get Started <ArrowRight size={15} />
             </a>
@@ -497,12 +528,8 @@ export default function Home() {
               </div>
 
               <h1>FIND <span>MALI</span></h1>
-
               <h2>Your Temporary Inbox</h2>
-
-              <h3>
-                Quick. Secure. <em>Simple.</em>
-              </h3>
+              <h3>Quick. Secure. <em>Simple.</em></h3>
 
               <p>
                 Explore a fresh, modern inbox experience with
@@ -514,36 +541,16 @@ export default function Home() {
                 <a className="button primary" href="#inbox">
                   <Zap size={17} /> Explore Inbox
                 </a>
-
                 <a className="button outline" href="#features">
                   <Eye size={16} /> Learn More
                 </a>
               </div>
 
               <div className="hero-stats">
-                <div>
-                  <Zap />
-                  <b>Instant</b>
-                  <small>Demo setup</small>
-                </div>
-
-                <div>
-                  <ShieldCheck />
-                  <b>Privacy</b>
-                  <small>Focused design</small>
-                </div>
-
-                <div>
-                  <Clock3 />
-                  <b>60 Min</b>
-                  <small>Session preview</small>
-                </div>
-
-                <div>
-                  <Heart />
-                  <b>Free</b>
-                  <small>To explore</small>
-                </div>
+                <div><Zap /><b>Instant</b><small>Demo setup</small></div>
+                <div><ShieldCheck /><b>Privacy</b><small>Focused design</small></div>
+                <div><Clock3 /><b>60 Min</b><small>Session preview</small></div>
+                <div><Heart /><b>Free</b><small>To explore</small></div>
               </div>
             </div>
 
@@ -554,12 +561,10 @@ export default function Home() {
 
               <div className="mail-platform">
                 <div className="platform-top" />
-
                 <div className="neon-envelope">
                   <div className="env-flap" />
                   <Mail size={104} strokeWidth={1.15} />
                 </div>
-
                 <div className="platform-glow" />
               </div>
 
@@ -568,15 +573,11 @@ export default function Home() {
               </div>
 
               <div className="float-chip chip-a">
-                <ShieldCheck size={15} />
-                PRIVATE BY DESIGN
+                <ShieldCheck size={15} /> PRIVATE BY DESIGN
               </div>
-
               <div className="float-chip chip-b">
-                <Activity size={15} />
-                LIVE PREVIEW
+                <Activity size={15} /> LIVE PREVIEW
               </div>
-
               <div className="spark s1">✦</div>
               <div className="spark s2">✧</div>
             </div>
@@ -586,82 +587,44 @@ export default function Home() {
           <section className="inbox-section" id="inbox">
             <div className="section-heading">
               <div>
-                <span className="kicker">
-                  YOUR PERSONAL SPACE
-                </span>
-
-                <h2>
-                  Your inbox is ready{' '}
-                  <span className="live-dot" />
-                </h2>
-
-                <p>
-                  One simple place to explore your sample
-                  messages.
-                </p>
+                <span className="kicker">YOUR PERSONAL SPACE</span>
+                <h2>Your inbox is ready <span className="live-dot" /></h2>
+                <p>One simple place to explore your sample messages.</p>
               </div>
-
-              <span className="preview-badge">
-                <i /> PREVIEW ACTIVE
-              </span>
+              <span className="preview-badge"><i /> PREVIEW ACTIVE</span>
             </div>
 
             <div className="inbox-dashboard panel">
               <div className="inbox-top">
                 <div className="mascot-wrap">
                   <div className="mascot-aura" />
-
                   <div className="mascot">
                     <div className="antenna" />
-
-                    <div className="robot-head">
-                      <i />
-                      <i />
-                    </div>
-
-                    <div className="robot-body">
-                      <Mail size={34} />
-                    </div>
+                    <div className="robot-head"><i /><i /></div>
+                    <div className="robot-body"><Mail size={34} /></div>
                   </div>
                 </div>
 
                 <div className="address-area">
                   <div className="ready-label">
-                    <span className="check-round">
-                      <Check size={15} />
-                    </span>
-
+                    <span className="check-round"><Check size={15} /></span>
                     YOUR TEMPORARY INBOX IS READY
                   </div>
 
                   <h3>Welcome to your inbox</h3>
-
-                  <p>
-                    Your demo address is ready to copy and
-                    explore.
-                  </p>
+                  <p>Your demo address is ready to copy and explore.</p>
 
                   <div className="address-row">
                     <div className="address-value">
                       <Mail size={18} />
                       <strong>{address}</strong>
                     </div>
-
-                    <button
-                      className="copy-button"
-                      onClick={copyAddress}
-                    >
-                      {copied ? (
-                        <Check size={16} />
-                      ) : (
-                        <Copy size={16} />
-                      )}
-
+                    <button className="copy-button" onClick={copyAddress}>
+                      {copied ? <Check size={16} /> : <Copy size={16} />}
                       {copied ? 'Copied' : 'Copy'}
                     </button>
                   </div>
 
-                  {/* AUTOMATIC SESSION TIMER */}
                   <div className="timer-row">
                     <Clock3 size={16} />
                     <span>Session preview</span>
@@ -669,93 +632,109 @@ export default function Home() {
                   </div>
 
                   <div className="progress-track">
-                    <span
-                      style={{
-                        width:
-                          (remaining / 3600) * 100 + '%',
-                      }}
-                    />
+                    <span style={{ width: (remaining / 3600) * 100 + '%' }} />
                   </div>
                 </div>
 
-                {/* INBOX ACTIONS */}
                 <div className="inbox-actions">
                   <h4>Inbox Actions</h4>
 
                   <button onClick={refresh}>
-                    <RefreshCw size={16} />
-                    Refresh
+                    <RefreshCw size={16} /> Refresh
                   </button>
 
-                  <button onClick={newInbox}>
+                  <button onClick={newInbox} disabled={siteKeyLoading || creatingInbox}>
                     <Plus size={17} />
-                    New Inbox
+                    {siteKeyLoading ? 'Loading...' : 'New Inbox'}
                   </button>
 
-                  <button
-                    className="delete-all"
-                    onClick={clearAllMessages}
-                  >
-                    <Trash2 size={16} />
-                    Clear All
+                  <button className="delete-all" onClick={clearAllMessages}>
+                    <Trash2 size={16} /> Clear All
                   </button>
 
                   <button onClick={resetPreview}>
-                    <RefreshCw size={16} />
-                    Reset Demo
+                    <RefreshCw size={16} /> Reset Demo
                   </button>
+
+                  {/* CLOUDFLARE TURNSTILE */}
+                  {showTurnstile && (
+                    <div
+                      className="turnstile-panel"
+                      style={{
+                        marginTop: '14px',
+                        padding: '14px',
+                        border: '1px solid rgba(0, 220, 255, 0.25)',
+                        borderRadius: '14px',
+                        background: 'rgba(0, 220, 255, 0.05)',
+                      }}
+                    >
+                      <p style={{ marginBottom: '10px', fontSize: '13px' }}>
+                        Complete the security check
+                      </p>
+
+                      {siteKey ? (
+                        <Turnstile
+                          siteKey={siteKey}
+                          onSuccess={handleTurnstileSuccess}
+                          onExpire={() => {
+                            setTurnstileToken('');
+                            setCreatingInbox(false);
+                            setNotice('CAPTCHA expired. Please try again.');
+                          }}
+                          onError={handleTurnstileError}
+                          options={{
+                            theme: 'dark',
+                            size: 'normal',
+                          }}
+                        />
+                      ) : (
+                        <p role="alert">
+                          CAPTCHA configuration is unavailable.
+                        </p>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={cancelTurnstile}
+                        style={{ marginTop: '10px' }}
+                      >
+                        <X size={15} /> Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* RECENT MESSAGES / MESSAGE DETAILS */}
               <div className="recent-head">
                 <h3>
                   {activeEmail ? (
-                    <>
-                      Message Details
-                      <span className="detail-count">
-                        OPEN
-                      </span>
-                    </>
+                    <>Message Details <span className="detail-count">OPEN</span></>
                   ) : (
                     <>
                       Recent Messages
                       <span>{emails.length}</span>
-
                       <small className="unread-count">
-                        {
-                          emails.filter(
-                            (email) => email.unread
-                          ).length
-                        }{' '}
-                        unread
+                        {emails.filter((email) => email.unread).length} unread
                       </small>
                     </>
                   )}
                 </h3>
 
                 {!activeEmail && (
-                  <span className="recent-hint">
-                    Tap a message to read
-                  </span>
+                  <span className="recent-hint">Tap a message to read</span>
                 )}
               </div>
 
-              {/* SEARCH */}
               {!activeEmail && (
                 <div className="inbox-search">
                   <Mail size={17} />
-
                   <input
                     type="search"
                     placeholder="Search messages, senders..."
                     value={searchQuery}
-                    onChange={(event) =>
-                      setSearchQuery(event.target.value)
-                    }
+                    onChange={(event) => setSearchQuery(event.target.value)}
                     aria-label="Search sample messages"
                   />
-
                   {searchQuery && (
                     <button
                       type="button"
@@ -768,28 +747,18 @@ export default function Home() {
                 </div>
               )}
 
-              {/* MESSAGE DETAILS */}
               {activeEmail ? (
                 <div className="full-message-view">
-                  <button
-                    className="back-messages-button"
-                    onClick={closeMessage}
-                  >
-                    <ArrowLeft size={17} />
-                    Back to Recent Messages
+                  <button className="back-messages-button" onClick={closeMessage}>
+                    <ArrowLeft size={17} /> Back to Recent Messages
                   </button>
 
                   <article className="full-message-card">
                     <div className="reader-top">
-                      <span className="kicker">
-                        MESSAGE DETAILS
-                      </span>
-
+                      <span className="kicker">MESSAGE DETAILS</span>
                       <button
                         className="icon-button danger"
-                        onClick={() =>
-                          removeMessage(activeEmail.id)
-                        }
+                        onClick={() => removeMessage(activeEmail.id)}
                         aria-label="Delete message"
                         title="Delete message"
                       >
@@ -803,62 +772,43 @@ export default function Home() {
                       <span className="message-avatar">
                         {activeEmail.sender[0].toUpperCase()}
                       </span>
-
                       <span>
                         <strong>{activeEmail.sender}</strong>
                         <small>To: {address}</small>
                       </span>
-
                       <time>{activeEmail.time}</time>
                     </div>
 
-                    <div className="email-body">
-                      {activeEmail.body}
-                    </div>
+                    <div className="email-body">{activeEmail.body}</div>
 
                     <div className="sample-label">
-                      <ShieldCheck size={15} />
-                      Fictional sample content
+                      <ShieldCheck size={15} /> Fictional sample content
                     </div>
                   </article>
                 </div>
               ) : (
                 <div className="recent-list">
-                  {filteredEmails
-                    .slice(0, 3)
-                    .map((email, index) => (
-                      <button
-                        className="recent-item"
-                        key={email.id}
-                        onClick={() =>
-                          openMessage(email.id)
-                        }
-                      >
-                        <span
-                          className={
-                            'mail-app-icon app-' + index
-                          }
-                        >
-                          <Mail size={20} />
-                        </span>
-
-                        <span className="recent-text">
-                          <b>{email.sender}</b>
-                          <small>{email.subject}</small>
-                        </span>
-
-                        <time>{email.time}</time>
-
-                        <span className="view-pill">
-                          View
-                        </span>
-                      </button>
-                    ))}
+                  {filteredEmails.slice(0, 3).map((email, index) => (
+                    <button
+                      className="recent-item"
+                      key={email.id}
+                      onClick={() => openMessage(email.id)}
+                    >
+                      <span className={'mail-app-icon app-' + index}>
+                        <Mail size={20} />
+                      </span>
+                      <span className="recent-text">
+                        <b>{email.sender}</b>
+                        <small>{email.subject}</small>
+                      </span>
+                      <time>{email.time}</time>
+                      <span className="view-pill">View</span>
+                    </button>
+                  ))}
 
                   {filteredEmails.length === 0 && (
                     <div className="recent-empty">
                       <Inbox size={22} />
-
                       {emails.length === 0
                         ? 'Your sample inbox is empty. Create a new demo inbox to start again.'
                         : 'No matching sample messages found.'}
@@ -867,9 +817,7 @@ export default function Home() {
                 </div>
               )}
 
-              <p className="notice" role="status">
-                {notice}
-              </p>
+              <p className="notice" role="status">{notice}</p>
             </div>
           </section>
 
@@ -877,70 +825,32 @@ export default function Home() {
           <section className="features" id="features">
             <div className="section-heading centered">
               <div>
-                <span className="kicker">
-                  MADE FOR A BETTER EXPERIENCE
-                </span>
-
+                <span className="kicker">MADE FOR A BETTER EXPERIENCE</span>
                 <h2>Everything feels simpler.</h2>
-
-                <p>
-                  A clean interface, thoughtful details and
-                  controls that stay out of your way.
-                </p>
+                <p>A clean interface, thoughtful details and controls that stay out of your way.</p>
               </div>
             </div>
 
             <div className="feature-grid">
               <article className="feature-card panel">
-                <span className="feature-icon cyan">
-                  <Zap />
-                </span>
-
+                <span className="feature-icon cyan"><Zap /></span>
                 <h3>Quick to explore</h3>
-
-                <p>
-                  A simple flow helps you get around the
-                  preview without unnecessary steps.
-                </p>
+                <p>A simple flow helps you get around the preview without unnecessary steps.</p>
               </article>
-
               <article className="feature-card panel">
-                <span className="feature-icon pink">
-                  <ShieldCheck />
-                </span>
-
+                <span className="feature-icon pink"><ShieldCheck /></span>
                 <h3>Privacy-minded</h3>
-
-                <p>
-                  Clear preview labels and fictional data
-                  keep the purpose of this demo transparent.
-                </p>
+                <p>Clear preview labels and fictional data keep the purpose of this demo transparent.</p>
               </article>
-
               <article className="feature-card panel">
-                <span className="feature-icon violet">
-                  <Activity />
-                </span>
-
+                <span className="feature-icon violet"><Activity /></span>
                 <h3>Smart controls</h3>
-
-                <p>
-                  Refresh, copy and manage sample messages
-                  in one focused space.
-                </p>
+                <p>Refresh, copy and manage sample messages in one focused space.</p>
               </article>
-
               <article className="feature-card panel">
-                <span className="feature-icon blue">
-                  <Globe2 />
-                </span>
-
+                <span className="feature-icon blue"><Globe2 /></span>
                 <h3>Works on any screen</h3>
-
-                <p>
-                  A responsive layout designed for phones,
-                  tablets and desktop screens.
-                </p>
+                <p>A responsive layout designed for phones, tablets and desktop screens.</p>
               </article>
             </div>
           </section>
@@ -952,39 +862,21 @@ export default function Home() {
                 <ShieldCheck size={74} />
                 <span />
               </div>
-
               <div className="about-orbit" />
             </div>
 
             <div>
-              <span className="kicker">
-                ABOUT FIND MALI
-              </span>
-
-              <h2>
-                A simpler way to explore your inbox.
-              </h2>
-
+              <span className="kicker">ABOUT FIND MALI</span>
+              <h2>A simpler way to explore your inbox.</h2>
               <p>
-                FIND MALI is being shaped around a clear,
-                approachable inbox experience. This current
-                build is a frontend concept, with sample-only
-                content so you can explore the design and
-                interactions.
+                FIND MALI is being shaped around a clear, approachable inbox
+                experience. This current build is a frontend concept, with
+                sample-only content so you can explore the design and interactions.
               </p>
-
               <ul>
-                <li>
-                  <Check /> Clean and simple interface
-                </li>
-
-                <li>
-                  <Check /> Mobile-friendly experience
-                </li>
-
-                <li>
-                  <Check /> Transparent preview status
-                </li>
+                <li><Check /> Clean and simple interface</li>
+                <li><Check /> Mobile-friendly experience</li>
+                <li><Check /> Transparent preview status</li>
               </ul>
             </div>
           </section>
@@ -993,43 +885,27 @@ export default function Home() {
           <section className="faq" id="faq">
             <div className="section-heading centered">
               <div>
-                <span className="kicker">
-                  HELP CENTER
-                </span>
-
+                <span className="kicker">HELP CENTER</span>
                 <h2>Frequently asked questions</h2>
-
-                <p>
-                  Quick answers about this website preview.
-                </p>
+                <p>Quick answers about this website preview.</p>
               </div>
             </div>
 
             <div className="faq-list">
               {faqs.map(([question, answer], index) => (
                 <div
-                  className={
-                    faqOpen === index
-                      ? 'faq-item opened'
-                      : 'faq-item'
-                  }
+                  className={faqOpen === index ? 'faq-item opened' : 'faq-item'}
                   key={question}
                 >
                   <button
-                    onClick={() =>
-                      setFaqOpen(
-                        faqOpen === index ? -1 : index
-                      )
-                    }
+                    onClick={() => setFaqOpen(faqOpen === index ? -1 : index)}
                     aria-expanded={faqOpen === index}
                   >
                     <span>{question}</span>
                     <ChevronDown size={18} />
                   </button>
 
-                  {faqOpen === index && (
-                    <p>{answer}</p>
-                  )}
+                  {faqOpen === index && <p>{answer}</p>}
                 </div>
               ))}
             </div>
@@ -1037,23 +913,12 @@ export default function Home() {
 
           {/* CALL TO ACTION */}
           <section className="closing-cta">
-            <div className="cta-icon">
-              <Send size={27} />
-            </div>
-
+            <div className="cta-icon"><Send size={27} /></div>
             <div>
-              <span className="kicker">
-                READY TO TAKE A LOOK?
-              </span>
-
+              <span className="kicker">READY TO TAKE A LOOK?</span>
               <h2>Your next inbox starts here.</h2>
-
-              <p>
-                Explore the FIND MALI preview and see how
-                it feels.
-              </p>
+              <p>Explore the FIND MALI preview and see how it feels.</p>
             </div>
-
             <a className="button primary" href="#inbox">
               Get Started <ArrowRight size={16} />
             </a>
@@ -1063,19 +928,14 @@ export default function Home() {
         {/* FOOTER */}
         <footer>
           <Link className="brand footer-brand" href="/">
-            <span className="brand-mark">
-              <Mail size={21} />
-            </span>
-
+            <span className="brand-mark"><Mail size={21} /></span>
             <span>
               FIND <b>MALI</b>
               <small>YOUR INBOX, SIMPLIFIED</small>
             </span>
           </Link>
 
-          <span>
-            © 2026 FIND MALI. Frontend preview.
-          </span>
+          <span>© 2026 FIND MALI. Frontend preview.</span>
 
           <div className="footer-links">
             <Link href="/privacy">Privacy</Link>
