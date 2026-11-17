@@ -10,7 +10,7 @@ import {
   X, Zap, Heart, Eye, Send, ArrowLeft,
 } from 'lucide-react';
 
-type DemoEmail = {
+type InboxMessage = {
   id: number;
   sender: string;
   subject: string;
@@ -20,59 +20,11 @@ type DemoEmail = {
   tag: string;
 };
 
-const STORAGE_KEY = 'find-mali-demo-v2';
-
-const seedEmails: DemoEmail[] = [
-  {
-    id: 1,
-    sender: 'hello@sample.test',
-    subject: 'Welcome to your sample inbox',
-    time: 'Just now',
-    body: 'Welcome to the FIND MALI interface preview. This is a fictional sample message. No external email was received.',
-    unread: true,
-    tag: 'Welcome',
-  },
-  {
-    id: 2,
-    sender: 'updates@example.test',
-    subject: 'Your workspace is ready to explore',
-    time: '4 min ago',
-    body: 'Your sample workspace is ready. All content in this preview is fictional.',
-    unread: false,
-    tag: 'Updates',
-  },
-  {
-    id: 3,
-    sender: 'team@demo.test',
-    subject: 'A few tips to get started',
-    time: '12 min ago',
-    body: 'Use the controls to explore the sample inbox. This is a local interface demonstration only.',
-    unread: false,
-    tag: 'Guide',
-  },
-];
-
-function isValidEmail(value: any): value is DemoEmail {
-  return (
-    value &&
-    typeof value.id === 'number' &&
-    typeof value.sender === 'string' &&
-    typeof value.subject === 'string' &&
-    typeof value.body === 'string' &&
-    typeof value.time === 'string' &&
-    typeof value.unread === 'boolean' &&
-    typeof value.tag === 'string'
-  );
-}
-
 export default function Home() {
-  const [address, setAddress] = useState(
-    'hello-visitor@demo.findmali.test'
-  );
-
-  const [emails, setEmails] = useState<DemoEmail[]>(seedEmails);
+  const [address, setAddress] = useState('');
+  const [emails, setEmails] = useState<InboxMessage[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
-  const [remaining, setRemaining] = useState(3600);
+  const [remaining, setRemaining] = useState(0);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
 
   const [hydrated, setHydrated] = useState(false);
@@ -81,7 +33,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const [notice, setNotice] = useState(
-    'Demo environment ready · sample messages only'
+    'Create a new inbox to get started.'
   );
 
   const [faqOpen, setFaqOpen] = useState(0);
@@ -90,7 +42,7 @@ export default function Home() {
   const [siteKey, setSiteKey] = useState('');
   const [siteKeyLoading, setSiteKeyLoading] = useState(true);
   const [showTurnstile, setShowTurnstile] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState('');
+  const [, setTurnstileToken] = useState('');
   const [creatingInbox, setCreatingInbox] = useState(false);
   const [isMobileLayout, setIsMobileLayout] = useState(false);
 
@@ -157,72 +109,10 @@ export default function Home() {
     };
   }, []);
 
-  // LOAD SAVED DEMO DATA
+  // CLIENT READY
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-
-      if (raw) {
-        const saved = JSON.parse(raw);
-
-        if (
-          typeof saved.address === 'string' &&
-          saved.address.endsWith('@demo.findmali.test')
-        ) {
-          setAddress(saved.address);
-        }
-
-        if (Array.isArray(saved.emails)) {
-          setEmails(saved.emails.filter(isValidEmail));
-        }
-
-        if (
-          typeof saved.expiresAt === 'number' &&
-          Number.isFinite(saved.expiresAt)
-        ) {
-          setExpiresAt(saved.expiresAt);
-        } else {
-          const oldRemaining =
-            typeof saved.remaining === 'number'
-              ? Math.max(0, Math.min(3600, Math.floor(saved.remaining)))
-              : 3600;
-
-          setExpiresAt(Date.now() + oldRemaining * 1000);
-        }
-      } else {
-        setExpiresAt(Date.now() + 3600 * 1000);
-      }
-    } catch {
-      try {
-        window.localStorage.removeItem(STORAGE_KEY);
-      } catch {
-        // Storage unavailable.
-      }
-
-      setExpiresAt(Date.now() + 3600 * 1000);
-    } finally {
-      setHydrated(true);
-    }
+    setHydrated(true);
   }, []);
-
-  // SAVE DEMO DATA
-  useEffect(() => {
-    if (!hydrated) return;
-
-    try {
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          address,
-          emails,
-          remaining,
-          expiresAt,
-        })
-      );
-    } catch {
-      setNotice('Browser storage is unavailable');
-    }
-  }, [hydrated, address, emails, remaining, expiresAt]);
 
   // AUTOMATIC SESSION TIMER
   useEffect(() => {
@@ -266,6 +156,7 @@ export default function Home() {
     };
   }, [mobileMenu]);
 
+  // FILTER EMAILS
   const filteredEmails = emails.filter((email) => {
     const query = searchQuery.toLowerCase().trim();
 
@@ -290,11 +181,16 @@ export default function Home() {
 
   // COPY ADDRESS
   async function copyAddress() {
+    if (!address) {
+      setNotice('Create an inbox first.');
+      return;
+    }
+
     try {
       await navigator.clipboard.writeText(address);
 
       setCopied(true);
-      setNotice('Demo address copied to clipboard');
+      setNotice('Inbox address copied to clipboard');
 
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
@@ -302,60 +198,10 @@ export default function Home() {
     }
   }
 
-  // CREATE DEMO INBOX
-  function createDemoInbox() {
-    const newAddress =
-      'visitor-' +
-      Math.random().toString(36).slice(2, 7) +
-      '@demo.findmali.test';
-
-    const newExpiry = Date.now() + 3600 * 1000;
-
-    setAddress(newAddress);
-    setEmails([]);
-    setSelected(null);
-    setRemaining(3600);
-    setExpiresAt(newExpiry);
-    setSearchQuery('');
-
-    setShowTurnstile(false);
-    setTurnstileToken('');
-    setCreatingInbox(false);
-
-    setNotice('Fresh sample inbox created');
-  }
-
-  // NEW MAIL BUTTON
-  function newInbox() {
-    if (siteKeyLoading) {
-      setNotice('Loading CAPTCHA configuration. Please wait.');
-      return;
-    }
-
-    if (!siteKey) {
-      setNotice('CAPTCHA is unavailable. Please check configuration.');
-      return;
-    }
-
-    setTurnstileToken('');
-    setShowTurnstile(true);
-
-    setNotice('Please complete the security check to continue.');
-  }
-
-  // TURNSTILE SUCCESS — SERVER-SIDE VERIFICATION
-  async function handleTurnstileSuccess(token: string) {
-    if (!token) {
-      setNotice('CAPTCHA verification did not return a token');
-      return;
-    }
-
-    setTurnstileToken(token);
-    setCreatingInbox(true);
-    setNotice('Verifying security check...');
-
+  // CREATE A REAL INBOX THROUGH THE SERVER API
+  async function createRealInbox(token: string) {
     try {
-      const response = await fetch('/api/verify-turnstile', {
+      const response = await fetch('/api/inboxes', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -363,28 +209,110 @@ export default function Home() {
         body: JSON.stringify({ token }),
       });
 
-      const result = await response.json();
+      const result = await response.json().catch(() => ({}));
 
-      if (!response.ok || result.success !== true) {
-        throw new Error('CAPTCHA verification failed');
+      if (
+        !response.ok ||
+        result.success !== true ||
+        !result.inbox
+      ) {
+        throw new Error(
+          result.message || 'Unable to create inbox'
+        );
       }
 
-      createDemoInbox();
-    } catch {
+      const inbox = result.inbox;
+      const expiry = new Date(inbox.expires_at).getTime();
+
+      if (
+        !inbox.email_address ||
+        !Number.isFinite(expiry)
+      ) {
+        throw new Error(
+          'The inbox service returned incomplete data'
+        );
+      }
+
+      setAddress(inbox.email_address);
+      setEmails([]);
+      setSelected(null);
+      setSearchQuery('');
+
+      setExpiresAt(expiry);
+
+      setRemaining(
+        Math.max(
+          0,
+          Math.ceil((expiry - Date.now()) / 1000)
+        )
+      );
+
+      setShowTurnstile(false);
+      setTurnstileToken('');
+      setCreatingInbox(false);
+
+      setNotice('Your new temporary inbox is ready.');
+    } catch (error) {
       setTurnstileToken('');
       setCreatingInbox(false);
       setShowTurnstile(false);
 
       setNotice(
-        'Security verification failed. Please try again.'
+        error instanceof Error
+          ? error.message
+          : 'Unable to create inbox. Please try again.'
       );
     }
+  }
+
+  // NEW MAIL BUTTON
+  function newInbox() {
+    if (siteKeyLoading) {
+      setNotice(
+        'Loading CAPTCHA configuration. Please wait.'
+      );
+      return;
+    }
+
+    if (!siteKey) {
+      setNotice(
+        'CAPTCHA is unavailable. Please check configuration.'
+      );
+      return;
+    }
+
+    setTurnstileToken('');
+    setShowTurnstile(true);
+
+    setNotice(
+      'Please complete the security check to continue.'
+    );
+  }
+
+  // TURNSTILE SUCCESS
+  async function handleTurnstileSuccess(token: string) {
+    if (!token) {
+      setNotice(
+        'CAPTCHA verification did not return a token'
+      );
+      return;
+    }
+
+    setTurnstileToken(token);
+    setCreatingInbox(true);
+
+    setNotice(
+      'Verifying security check and creating inbox...'
+    );
+
+    await createRealInbox(token);
   }
 
   // TURNSTILE ERROR
   function handleTurnstileError() {
     setTurnstileToken('');
     setCreatingInbox(false);
+
     setNotice('CAPTCHA error. Please try again.');
   }
 
@@ -447,7 +375,7 @@ export default function Home() {
                 fontSize: '12px',
               }}
             >
-              Complete the check to create a new demo inbox.
+              Complete the check to create your new inbox.
             </p>
           </div>
 
@@ -458,7 +386,10 @@ export default function Home() {
               onExpire={() => {
                 setTurnstileToken('');
                 setCreatingInbox(false);
-                setNotice('CAPTCHA expired. Please try again.');
+
+                setNotice(
+                  'CAPTCHA expired. Please try again.'
+                );
               }}
               onError={handleTurnstileError}
               options={{
@@ -485,7 +416,7 @@ export default function Home() {
                 fontSize: '12px',
               }}
             >
-              Creating your demo inbox...
+              Creating your inbox...
             </span>
           )}
         </div>
@@ -493,60 +424,88 @@ export default function Home() {
     );
   }
 
-  // RESET DEMO PREVIEW
+  // CLOSE THE CURRENT INBOX VIEW
+  // This does not delete the database record.
   function resetPreview() {
-    const newExpiry = Date.now() + 3600 * 1000;
-
-    setAddress('hello-visitor@demo.findmali.test');
-    setEmails(seedEmails);
+    setAddress('');
+    setEmails([]);
     setSelected(null);
-    setRemaining(3600);
-    setExpiresAt(newExpiry);
+    setRemaining(0);
+    setExpiresAt(null);
     setSearchQuery('');
+
     setShowTurnstile(false);
     setTurnstileToken('');
 
-    setNotice('Preview restored to its original sample state');
+    setNotice(
+      'Inbox view closed. Create a new inbox to continue.'
+    );
   }
 
-  // REFRESH LOCAL DEMO DATA
-  function refresh() {
+  // REFRESH REAL INBOX MESSAGES
+  async function refresh() {
+    if (!address) {
+      setNotice('Create an inbox first.');
+      return;
+    }
+
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const response = await fetch(
+        `/api/inboxes/${encodeURIComponent(address)}/messages`,
+        {
+          method: 'GET',
+          cache: 'no-store',
+        }
+      );
 
-      if (!raw) {
-        setNotice('No saved demo inbox was found');
-        return;
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok || result.success !== true) {
+        throw new Error(
+          result.message || 'Unable to refresh inbox'
+        );
       }
 
-      const saved = JSON.parse(raw);
+      const receivedEmails: InboxMessage[] = (
+        result.messages || []
+      ).map((message: any) => ({
+        id: Number(message.id),
+        sender: message.sender || 'Unknown sender',
+        subject: message.subject || '(No subject)',
+        body: message.body || '',
+        time: message.received_at
+          ? new Date(message.received_at).toLocaleString()
+          : '',
+        unread: true,
+        tag: 'Email',
+      }));
 
-      if (
-        typeof saved.address === 'string' &&
-        saved.address.endsWith('@demo.findmali.test')
-      ) {
-        setAddress(saved.address);
-      }
+      setEmails(receivedEmails);
 
-      if (Array.isArray(saved.emails)) {
-        setEmails(saved.emails.filter(isValidEmail));
-      }
+      const expiry = new Date(
+        result.expires_at
+      ).getTime();
 
-      if (
-        typeof saved.expiresAt === 'number' &&
-        Number.isFinite(saved.expiresAt)
-      ) {
-        setExpiresAt(saved.expiresAt);
+      if (Number.isFinite(expiry)) {
+        setExpiresAt(expiry);
       }
 
       setSelected(null);
       setSearchQuery('');
-      setNotice('Local demo inbox refreshed successfully');
-    } catch {
-      setNotice('Unable to refresh local demo data');
+
+      setNotice(
+        `Inbox refreshed successfully · ${receivedEmails.length} messages`
+      );
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : 'Unable to refresh inbox'
+      );
     }
   }
 
+  // OPEN MESSAGE
   function openMessage(id: number) {
     setSelected(id);
 
@@ -563,34 +522,43 @@ export default function Home() {
     setSelected(null);
   }
 
+  // HIDE MESSAGE FROM CURRENT VIEW ONLY
   function removeMessage(id: number) {
     setEmails((value) =>
       value.filter((email) => email.id !== id)
     );
 
     setSelected(null);
-    setNotice('Sample message removed');
+
+    setNotice(
+      'Message hidden from this view. Refresh to load it again.'
+    );
   }
 
+  // CLEAR CURRENT VIEW ONLY
   function clearAllMessages() {
     setEmails([]);
     setSelected(null);
     setSearchQuery('');
-    setNotice('All sample messages cleared');
+
+    setNotice(
+      'Messages cleared from this view. Refresh to load them again.'
+    );
   }
 
+  // FAQ
   const faqs = [
     [
       'Does FIND MALI receive real emails?',
-      'This website version is a frontend preview. It only displays fictional sample messages and does not connect to an external mail server.',
+      'New inboxes use the findmali.com domain. Incoming delivery depends on the email routing service being active and correctly configured.',
     ],
     [
       'Do I need to create an account?',
-      'No account is needed to explore this preview. The address shown is a non-deliverable demo placeholder.',
+      'No account is needed. Complete the security check to create a temporary inbox.',
     ],
     [
-      'How long is a session?',
-      'The interface demonstrates a 60-minute session timer. It is a visual feature and does not manage a real mailbox.',
+      'How long is an inbox active?',
+      'Each temporary inbox currently expires after 10 minutes.',
     ],
     [
       'Can I use it on my phone?',
@@ -605,10 +573,13 @@ export default function Home() {
 
         <meta
           name="description"
-          content="Explore the FIND MALI private inbox interface preview."
+          content="Create a temporary FIND MALI email inbox and receive messages."
         />
 
-        <meta name="theme-color" content="#050b1b" />
+        <meta
+          name="theme-color"
+          content="#050b1b"
+        />
 
         <meta
           property="og:title"
@@ -617,23 +588,40 @@ export default function Home() {
 
         <meta
           property="og:description"
-          content="Explore the FIND MALI inbox interface preview."
+          content="Create a temporary FIND MALI email inbox and receive messages."
         />
 
-        <meta property="og:type" content="website" />
+        <meta
+          property="og:type"
+          content="website"
+        />
 
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <link rel="manifest" href="/manifest.webmanifest" />
+        <link
+          rel="icon"
+          href="/favicon.svg"
+          type="image/svg+xml"
+        />
+
+        <link
+          rel="manifest"
+          href="/manifest.webmanifest"
+        />
       </Head>
 
       <div className="site-shell">
-        <a className="skip-link" href="#main-content">
+        <a
+          className="skip-link"
+          href="#main-content"
+        >
           Skip to main content
         </a>
 
         {/* HEADER */}
         <header className="topbar">
-          <Link className="brand" href="/">
+          <Link
+            className="brand"
+            href="/"
+          >
             <span className="brand-mark">
               <Mail size={24} />
             </span>
@@ -677,7 +665,7 @@ export default function Home() {
             <div className="hero-copy">
               <div className="free-pill">
                 <Sparkles size={14} />
-                100% FREE PREVIEW · NO REGISTRATION
+                FREE TEMPORARY EMAIL · NO REGISTRATION
               </div>
 
               <h1>FIND <span>MALI</span></h1>
@@ -685,9 +673,8 @@ export default function Home() {
               <h3>Quick. Secure. <em>Simple.</em></h3>
 
               <p>
-                Explore a fresh, modern inbox experience with
-                a clean interface that keeps everything in one
-                place.
+                Create a temporary email inbox and receive messages in one
+                simple, easy-to-use place.
               </p>
 
               <div className="hero-actions">
@@ -701,10 +688,29 @@ export default function Home() {
               </div>
 
               <div className="hero-stats">
-                <div><Zap /><b>Instant</b><small>Demo setup</small></div>
-                <div><ShieldCheck /><b>Privacy</b><small>Focused design</small></div>
-                <div><Clock3 /><b>60 Min</b><small>Session preview</small></div>
-                <div><Heart /><b>Free</b><small>To explore</small></div>
+                <div>
+                  <Zap />
+                  <b>Instant</b>
+                  <small>Inbox creation</small>
+                </div>
+
+                <div>
+                  <ShieldCheck />
+                  <b>Privacy</b>
+                  <small>Focused experience</small>
+                </div>
+
+                <div>
+                  <Clock3 />
+                  <b>10 Min</b>
+                  <small>Inbox lifetime</small>
+                </div>
+
+                <div>
+                  <Heart />
+                  <b>Free</b>
+                  <small>To explore</small>
+                </div>
               </div>
             </div>
 
@@ -733,7 +739,7 @@ export default function Home() {
               </div>
 
               <div className="float-chip chip-b">
-                <Activity size={15} /> LIVE PREVIEW
+                <Activity size={15} /> LIVE INBOX
               </div>
 
               <div className="spark s1">✦</div>
@@ -745,19 +751,21 @@ export default function Home() {
           <section className="inbox-section" id="inbox">
             <div className="section-heading">
               <div>
-                <span className="kicker">YOUR PERSONAL SPACE</span>
+                <span className="kicker">
+                  YOUR PERSONAL SPACE
+                </span>
 
                 <h2>
-                  Your inbox is ready <span className="live-dot" />
+                  Your inbox is active <span className="live-dot" />
                 </h2>
 
                 <p>
-                  One simple place to explore your sample messages.
+                  One simple place to receive and read your emails.
                 </p>
               </div>
 
               <span className="preview-badge">
-                <i /> PREVIEW ACTIVE
+                <i /> INBOX STATUS
               </span>
             </div>
 
@@ -768,8 +776,13 @@ export default function Home() {
 
                   <div className="mascot">
                     <div className="antenna" />
-                    <div className="robot-head"><i /><i /></div>
-                    <div className="robot-body"><Mail size={34} /></div>
+                    <div className="robot-head">
+                      <i />
+                      <i />
+                    </div>
+                    <div className="robot-body">
+                      <Mail size={34} />
+                    </div>
                   </div>
                 </div>
 
@@ -779,37 +792,48 @@ export default function Home() {
                       <Check size={15} />
                     </span>
 
-                    YOUR TEMPORARY INBOX IS READY
+                    YOUR TEMPORARY INBOX
                   </div>
 
                   <h3>Welcome to your inbox</h3>
 
                   <p>
-                    Your demo address is ready to copy and explore.
+                    Your temporary email address is ready to copy and use.
                   </p>
 
                   <div className="address-row">
                     <div className="address-value">
                       <Mail size={18} />
-                      <strong>{address}</strong>
+                      <strong>
+                        {address || 'Create a new inbox'}
+                      </strong>
                     </div>
 
-                    <button className="copy-button" onClick={copyAddress}>
-                      {copied ? <Check size={16} /> : <Copy size={16} />}
+                    <button
+                      className="copy-button"
+                      onClick={copyAddress}
+                      disabled={!address}
+                    >
+                      {copied ? (
+                        <Check size={16} />
+                      ) : (
+                        <Copy size={16} />
+                      )}
+
                       {copied ? 'Copied' : 'Copy'}
                     </button>
                   </div>
 
                   <div className="timer-row">
                     <Clock3 size={16} />
-                    <span>Session preview</span>
+                    <span>Time remaining</span>
                     <b>{time}</b>
                   </div>
 
                   <div className="progress-track">
                     <span
                       style={{
-                        width: (remaining / 3600) * 100 + '%',
+                        width: `${Math.min(100, (remaining / 600) * 100)}%`,
                       }}
                     />
                   </div>
@@ -838,11 +862,11 @@ export default function Home() {
                     className="delete-all"
                     onClick={clearAllMessages}
                   >
-                    <Trash2 size={16} /> Clear All
+                    <Trash2 size={16} /> Clear View
                   </button>
 
                   <button onClick={resetPreview}>
-                    <RefreshCw size={16} /> Reset Demo
+                    <RefreshCw size={16} /> Close Inbox
                   </button>
 
                   {/* MOBILE CAPTCHA OVERLAY */}
@@ -892,8 +916,10 @@ export default function Home() {
                       type="search"
                       placeholder="Search messages, senders..."
                       value={searchQuery}
-                      onChange={(event) => setSearchQuery(event.target.value)}
-                      aria-label="Search sample messages"
+                      onChange={(event) =>
+                        setSearchQuery(event.target.value)
+                      }
+                      aria-label="Search messages"
                     />
 
                     {searchQuery && (
@@ -920,13 +946,17 @@ export default function Home() {
 
                     <article className="full-message-card">
                       <div className="reader-top">
-                        <span className="kicker">MESSAGE DETAILS</span>
+                        <span className="kicker">
+                          MESSAGE DETAILS
+                        </span>
 
                         <button
                           className="icon-button danger"
-                          onClick={() => removeMessage(activeEmail.id)}
-                          aria-label="Delete message"
-                          title="Delete message"
+                          onClick={() =>
+                            removeMessage(activeEmail.id)
+                          }
+                          aria-label="Hide message"
+                          title="Hide message"
                         >
                           <Trash2 size={17} />
                         </button>
@@ -953,7 +983,7 @@ export default function Home() {
 
                       <div className="sample-label">
                         <ShieldCheck size={15} />
-                        Fictional sample content
+                        Received email · Stored in your inbox
                       </div>
                     </article>
                   </div>
@@ -985,8 +1015,8 @@ export default function Home() {
                         <Inbox size={22} />
 
                         {emails.length === 0
-                          ? 'Your sample inbox is empty. Create a new demo inbox to start again.'
-                          : 'No matching sample messages found.'}
+                          ? 'No messages yet. Send an email to this address, then tap Refresh.'
+                          : 'No matching messages found.'}
                       </div>
                     )}
                   </div>
@@ -1018,35 +1048,48 @@ export default function Home() {
 
             <div className="feature-grid">
               <article className="feature-card panel">
-                <span className="feature-icon cyan"><Zap /></span>
+                <span className="feature-icon cyan">
+                  <Zap />
+                </span>
+
                 <h3>Quick to explore</h3>
+
                 <p>
-                  A simple flow helps you get around the preview
-                  without unnecessary steps.
+                  Create an inbox quickly and manage messages in one place.
                 </p>
               </article>
 
               <article className="feature-card panel">
-                <span className="feature-icon pink"><ShieldCheck /></span>
+                <span className="feature-icon pink">
+                  <ShieldCheck />
+                </span>
+
                 <h3>Privacy-minded</h3>
+
                 <p>
-                  Clear preview labels and fictional data keep
-                  the purpose of this demo transparent.
+                  Temporary inboxes are designed for short-lived message access.
                 </p>
               </article>
 
               <article className="feature-card panel">
-                <span className="feature-icon violet"><Activity /></span>
+                <span className="feature-icon violet">
+                  <Activity />
+                </span>
+
                 <h3>Smart controls</h3>
+
                 <p>
-                  Refresh, copy and manage sample messages
-                  in one focused space.
+                  Refresh, copy and read messages in one focused space.
                 </p>
               </article>
 
               <article className="feature-card panel">
-                <span className="feature-icon blue"><Globe2 /></span>
+                <span className="feature-icon blue">
+                  <Globe2 />
+                </span>
+
                 <h3>Works on any screen</h3>
+
                 <p>
                   A responsive layout designed for phones,
                   tablets and desktop screens.
@@ -1072,16 +1115,15 @@ export default function Home() {
               <h2>A simpler way to explore your inbox.</h2>
 
               <p>
-                FIND MALI is being shaped around a clear,
-                approachable inbox experience. This current
-                build is a frontend concept, with sample-only
-                content so you can explore the design and interactions.
+                FIND MALI provides temporary email inboxes without
+                requiring an account. Create an address, receive
+                incoming messages and read them from this page.
               </p>
 
               <ul>
                 <li><Check /> Clean and simple interface</li>
                 <li><Check /> Mobile-friendly experience</li>
-                <li><Check /> Transparent preview status</li>
+                <li><Check /> Temporary email inboxes</li>
               </ul>
             </div>
           </section>
@@ -1092,7 +1134,7 @@ export default function Home() {
               <div>
                 <span className="kicker">HELP CENTER</span>
                 <h2>Frequently asked questions</h2>
-                <p>Quick answers about this website preview.</p>
+                <p>Quick answers about temporary email.</p>
               </div>
             </div>
 
@@ -1100,13 +1142,17 @@ export default function Home() {
               {faqs.map(([question, answer], index) => (
                 <div
                   className={
-                    faqOpen === index ? 'faq-item opened' : 'faq-item'
+                    faqOpen === index
+                      ? 'faq-item opened'
+                      : 'faq-item'
                   }
                   key={question}
                 >
                   <button
                     onClick={() =>
-                      setFaqOpen(faqOpen === index ? -1 : index)
+                      setFaqOpen(
+                        faqOpen === index ? -1 : index
+                      )
                     }
                     aria-expanded={faqOpen === index}
                   >
@@ -1129,7 +1175,9 @@ export default function Home() {
             <div>
               <span className="kicker">READY TO TAKE A LOOK?</span>
               <h2>Your next inbox starts here.</h2>
-              <p>Explore the FIND MALI preview and see how it feels.</p>
+              <p>
+                Create a temporary inbox and receive your emails.
+              </p>
             </div>
 
             <a className="button primary" href="#inbox">
@@ -1140,7 +1188,10 @@ export default function Home() {
 
         {/* FOOTER */}
         <footer>
-          <Link className="brand footer-brand" href="/">
+          <Link
+            className="brand footer-brand"
+            href="/"
+          >
             <span className="brand-mark">
               <Mail size={21} />
             </span>
@@ -1151,7 +1202,9 @@ export default function Home() {
             </span>
           </Link>
 
-          <span>© 2026 FIND MALI. Frontend preview.</span>
+          <span>
+            © 2026 FIND MALI. Temporary email service.
+          </span>
 
           <div className="footer-links">
             <Link href="/privacy">Privacy</Link>
