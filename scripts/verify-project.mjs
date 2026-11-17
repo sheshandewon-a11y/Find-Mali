@@ -46,7 +46,6 @@ const timerRowMatch = page.match(
 
 const timerRow = timerRowMatch?.[1] ?? '';
 
-// Normalize escaped characters before checking the domain.
 const normalizedMessagesApi = messagesApi.replace(/\\/g, '');
 
 const checks = [
@@ -72,13 +71,41 @@ const checks = [
       createInboxApi.includes('SUPABASE_PUBLISHABLE_KEY'),
   ],
   [
+    'private proxy token is required by the creation API',
+    createInboxApi.includes('INBOX_PROXY_TOKEN') &&
+      createInboxApi.includes('x-inbox-proxy-token'),
+  ],
+  [
+    'Vercel client IP forwarding is present',
+    createInboxApi.includes("req.headers['x-forwarded-for']") &&
+      createInboxApi.includes('x-vercel-forwarded-for'),
+  ],
+  [
     'real inbox messages API is connected',
     page.includes('/api/inboxes/') &&
       messagesApi.includes('SUPABASE_PUBLISHABLE_KEY'),
   ],
   [
-    'local demo state persistence is not used',
-    !page.includes('find-mali-demo-v2'),
+    'name-based inbox addresses are supported',
+    /[a-z0-9-]\{3,32\}@findmali\\?\.com/i.test(
+      messagesApi
+    ) &&
+      /[a-z0-9-]\{3,32\}@findmali\\?\.com/i.test(page),
+  ],
+  [
+    'active inbox is saved for page restoration',
+    page.includes('findmali_active_inbox') &&
+      page.includes('localStorage.setItem'),
+  ],
+  [
+    'previous inbox restoration is implemented',
+    page.includes('restoreOrCreateInbox') &&
+      page.includes('localStorage.getItem'),
+  ],
+  [
+    'expired inbox automatically gets replaced',
+    page.includes('Your inbox has expired') &&
+      page.includes('await createRealInbox()'),
   ],
   [
     'automatic session countdown is present',
@@ -95,6 +122,15 @@ const checks = [
       !timerRow.includes('<button') &&
       !/\b(Pause|Resume|Reset)\b/.test(timerRow) &&
       !page.includes('timerRunning'),
+  ],
+  [
+    'Turnstile is not required by the frontend',
+    !page.includes('turnstile.execute') &&
+      !page.includes('cf-turnstile'),
+  ],
+  [
+    'local demo state persistence is not used',
+    !page.includes('find-mali-demo-v2'),
   ],
   [
     'typecheck script exists',
