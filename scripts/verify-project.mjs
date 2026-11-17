@@ -34,7 +34,9 @@ const read = (file) =>
 const page = read('pages/index.tsx');
 const health = read('pages/api/health.ts');
 const createInboxApi = read('pages/api/inboxes/index.ts');
-const messagesApi = read('pages/api/inboxes/[email]/messages.ts');
+const messagesApi = read(
+  'pages/api/inboxes/[email]/messages.ts'
+);
 
 const pkg = JSON.parse(read('package.json'));
 
@@ -47,13 +49,14 @@ const timerRow = timerRowMatch?.[1] ?? '';
 const checks = [
   [
     'real findmali.com inbox domain is used',
-    /@findmali\.com/.test(messagesApi) &&
-      /findmali\.com/.test(page),
+    /@findmali\.com/i.test(messagesApi) &&
+      page.includes("fetch('/api/inboxes'") &&
+      page.includes('/api/inboxes/'),
   ],
   [
     'production mode is reported by health endpoint',
     health.includes("mode: 'production'") &&
-      health.includes("emailBackend,"),
+      health.includes('emailBackend,'),
   ],
   [
     'Supabase backend configuration is checked',
