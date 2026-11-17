@@ -69,6 +69,7 @@ export default function Home() {
   const [address, setAddress] = useState(
     'hello-visitor@demo.findmali.test'
   );
+
   const [emails, setEmails] = useState<DemoEmail[]>(seedEmails);
   const [selected, setSelected] = useState<number | null>(null);
   const [remaining, setRemaining] = useState(3600);
@@ -78,9 +79,11 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
   const [notice, setNotice] = useState(
     'Demo environment ready · sample messages only'
   );
+
   const [faqOpen, setFaqOpen] = useState(0);
 
   // TURNSTILE STATE
@@ -340,8 +343,8 @@ export default function Home() {
     setNotice('Please complete the security check to continue.');
   }
 
-  // TURNSTILE SUCCESS
-  function handleTurnstileSuccess(token: string) {
+  // TURNSTILE SUCCESS — SERVER-SIDE VERIFICATION
+  async function handleTurnstileSuccess(token: string) {
     if (!token) {
       setNotice('CAPTCHA verification did not return a token');
       return;
@@ -349,11 +352,33 @@ export default function Home() {
 
     setTurnstileToken(token);
     setCreatingInbox(true);
+    setNotice('Verifying security check...');
 
-    // Frontend demo only.
-    // Server-side token verification is required
-    // before connecting this to real inbox creation.
-    createDemoInbox();
+    try {
+      const response = await fetch('/api/verify-turnstile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.success !== true) {
+        throw new Error('CAPTCHA verification failed');
+      }
+
+      createDemoInbox();
+    } catch {
+      setTurnstileToken('');
+      setCreatingInbox(false);
+      setShowTurnstile(false);
+
+      setNotice(
+        'Security verification failed. Please try again.'
+      );
+    }
   }
 
   // TURNSTILE ERROR
@@ -364,7 +389,6 @@ export default function Home() {
   }
 
   // SHARED CAPTCHA OVERLAY
-  // Only one Turnstile widget is mounted at a time.
   function renderTurnstileOverlay() {
     if (!showTurnstile) return null;
 
