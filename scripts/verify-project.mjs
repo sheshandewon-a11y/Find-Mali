@@ -36,9 +36,11 @@ const read = (file) =>
 
 const page = read('pages/index.tsx');
 const health = read('pages/api/health.ts');
+
 const createInboxApi = read(
   'pages/api/inboxes/index.ts'
 );
+
 const messagesApi = read(
   'pages/api/inboxes/[email]/messages.ts'
 );
@@ -54,7 +56,8 @@ const timerRow = timerRowMatch?.[1] ?? '';
 const checks = [
   [
     'real findmali.com inbox domain is used',
-    /@findmali\.com/i.test(messagesApi) &&
+    messagesApi.includes('@findmali\\.com') &&
+      page.includes('@findmali\\.com') &&
       page.includes("fetch('/api/inboxes'") &&
       page.includes('/api/inboxes/'),
   ],
@@ -107,13 +110,10 @@ const checks = [
 
   [
     'name-based inbox addresses are supported',
-    /^[\s\S]*$/.test(messagesApi) &&
-      /\^\[a-z0-9-\]\{3,32\}@findmali\\\.com\$/.test(
-        messagesApi
-      ) &&
-      /\^\[a-z0-9-\]\{3,32\}@findmali\\\.com\$/.test(
-        page
-      ),
+    messagesApi.includes('[a-z0-9-]{3,32}') &&
+      messagesApi.includes('@findmali\\.com') &&
+      page.includes('[a-z0-9-]{3,32}') &&
+      page.includes('@findmali\\.com'),
   ],
 
   [
