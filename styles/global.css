@@ -2155,3 +2155,128 @@ button:disabled:hover {
     font-size: 11px;
   }
 }
+
+/* =========================================
+   FIND MALI - RESPONSIVE CAPTCHA OVERLAY
+========================================= */
+
+.inbox-dashboard {
+  position: relative;
+}
+
+/* Desktop: overlay is positioned over Recent Messages */
+.inbox-actions {
+  position: static;
+}
+
+.captcha-overlay {
+  position: absolute;
+  z-index: 20;
+  top: 245px;
+  left: 25px;
+  right: 25px;
+  bottom: 15px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 18px;
+  border-radius: 13px;
+
+  background: rgba(3, 9, 24, 0.48);
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+
+  animation: captchaFadeIn 0.2s ease;
+}
+
+.captcha-dialog {
+  width: min(100%, 390px);
+  min-height: 150px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+
+  padding: 22px 16px;
+  border: 1px solid rgba(19, 231, 255, 0.38);
+  border-radius: 15px;
+
+  background: rgba(8, 22, 46, 0.96);
+  box-shadow:
+    0 0 30px rgba(0, 220, 255, 0.13),
+    0 15px 40px rgba(0, 0, 0, 0.35);
+
+  text-align: center;
+}
+
+.captcha-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+
+  color: var(--cyan);
+  font: 700 15px 'Space Grotesk';
+}
+
+.captcha-heading svg {
+  flex: none;
+}
+
+.captcha-dialog > p {
+  margin: 0;
+  color: #a8bad4;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.captcha-dialog iframe {
+  max-width: 100%;
+}
+
+/* Mobile: overlay stays inside Mail Actions */
+@media (max-width: 680px) {
+  .inbox-actions {
+    position: relative;
+  }
+
+  .captcha-overlay {
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    bottom: -1px;
+
+    padding: 10px;
+    border: 1px solid rgba(19, 231, 255, 0.3);
+    border-radius: 12px;
+  }
+
+  .captcha-dialog {
+    width: 100%;
+    padding: 17px 8px;
+  }
+
+  .captcha-heading {
+    font-size: 13px;
+  }
+}
+
+@keyframes captchaFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .captcha-overlay {
+    animation: none;
+  }
+}
