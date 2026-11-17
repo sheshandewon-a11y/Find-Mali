@@ -10,6 +10,8 @@ const required = [
   'pages/terms.tsx',
   'pages/404.tsx',
   'pages/api/health.ts',
+  'pages/api/inboxes/index.ts',
+  'pages/api/inboxes/[email]/messages.ts',
   'styles/global.css',
   'public/robots.txt',
   'public/sitemap.xml',
@@ -26,21 +28,16 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
-const page = readFileSync(
-  join(root, 'pages/index.tsx'),
-  'utf8'
-);
+const read = (file) =>
+  readFileSync(join(root, file), 'utf8');
 
-const health = readFileSync(
-  join(root, 'pages/api/health.ts'),
-  'utf8'
-);
+const page = read('pages/index.tsx');
+const health = read('pages/api/health.ts');
+const createInboxApi = read('pages/api/inboxes/index.ts');
+const messagesApi = read('pages/api/inboxes/[email]/messages.ts');
 
-const pkg = JSON.parse(
-  readFileSync(join(root, 'package.json'), 'utf8')
-);
+const pkg = JSON.parse(read('package.json'));
 
-// Inspect only the timer JSX block.
 const timerRowMatch = page.match(
   /<div className="timer-row">([\s\S]*?)<\/div>/
 );
@@ -49,16 +46,33 @@ const timerRow = timerRowMatch?.[1] ?? '';
 
 const checks = [
   [
-    'fictional demo domain is used',
-    page.includes('@demo.findmali.test'),
+    'real findmali.com inbox domain is used',
+    /@findmali\.com/.test(messagesApi) &&
+      /findmali\.com/.test(page),
   ],
   [
-    'no real mail backend is represented as active',
-    health.includes("emailBackend: 'disabled'"),
+    'production mode is reported by health endpoint',
+    health.includes("mode: 'production'") &&
+      health.includes("emailBackend,"),
   ],
   [
-    'local demo state persistence is present',
-    page.includes('find-mali-demo-v2'),
+    'Supabase backend configuration is checked',
+    health.includes('SUPABASE_PUBLISHABLE_KEY') &&
+      health.includes('supabase-configured'),
+  ],
+  [
+    'real inbox creation API is connected',
+    page.includes("fetch('/api/inboxes'") &&
+      createInboxApi.includes('SUPABASE_PUBLISHABLE_KEY'),
+  ],
+  [
+    'real inbox messages API is connected',
+    page.includes('/api/inboxes/') &&
+      messagesApi.includes('SUPABASE_PUBLISHABLE_KEY'),
+  ],
+  [
+    'local demo state persistence is not used',
+    !page.includes('find-mali-demo-v2'),
   ],
   [
     'automatic session countdown is present',
