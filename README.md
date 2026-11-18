@@ -1,15 +1,19 @@
 
 # FIND MALI
 
-A modern, responsive temporary inbox frontend built with Next.js.
+FIND MALI is a temporary email service that allows users to create temporary email addresses and receive incoming emails.
 
-## Technology
+## Technology Stack
 
 - Next.js 15
 - React 19
 - TypeScript
 - Tailwind CSS
 - Lucide React
+- Supabase
+- Cloudflare Email Routing
+- Cloudflare Turnstile
+- Vercel
 
 ## Requirements
 
@@ -18,7 +22,12 @@ A modern, responsive temporary inbox frontend built with Next.js.
 
 ## Installation
 
-Clone or download the repository.
+Clone the repository:
+
+```bash
+git clone https://github.com/sheshandewon-a11y/Find-Mali.git
+cd Find-Mali
+```
 
 Install dependencies:
 
@@ -58,57 +67,65 @@ npm run build
 
 ## Current Features
 
-- Responsive landing page
+- Responsive temporary email interface
 - Mobile navigation
-- Demo inbox address
-- Copy address
-- Session timer
-- Create new demo inbox
-- Search sample messages
-- Message preview
-- Delete sample messages
-- Local browser persistence
+- Real inbox creation through the backend
+- Name-based temporary email addresses
+- 60-minute inbox session
+- Automatic expired inbox replacement
+- Copy email address
+- Incoming email retrieval
+- Message search and preview
+- Cloudflare Turnstile verification
 - Privacy Policy
 - Terms of Use
 - Health API
 
-## Important Notice
+## Email Infrastructure
 
-FIND MALI currently operates as a frontend demonstration.
+The project uses:
 
-It does not currently include:
+- Cloudflare Email Routing
+- Cloudflare Worker for inbound email processing
+- Supabase Edge Functions
+- Supabase database
+- Vercel API routes
 
-- Real email receiving
-- Real email sending
-- Mail server
-- Production database
-- User authentication
-- Deliverable email addresses
+The production email infrastructure is configured separately from the frontend.
 
-All inbox messages are fictional.
+## Environment Variables
 
-Demo addresses use the reserved domain:
+The application uses server-side environment variables.
 
-@demo.findmali.test
+Examples of required configuration names:
 
-Do not use this preview for private or important communications.
+- `SUPABASE_PUBLISHABLE_KEY`
+- `INBOX_PROXY_TOKEN`
+- `TURNSTILE_SITE_KEY`
+
+Never commit secret values, private tokens or passwords to GitHub.
 
 ## Deployment
 
-The project uses the Next.js server runtime.
+The project is designed for deployment on Vercel.
 
-Do not enable static export because the project includes:
+Do not enable static export because the application uses server-side API routes.
 
-/api/health
+Do not change Cloudflare DNS or MX records without reviewing the existing email infrastructure.
 
-Vercel should automatically detect the Next.js framework.
+## Support
 
-Deploy a preview first and test it before connecting the custom domain.
+For questions or support:
 
-Do not change DNS or MX records until the email architecture has been planned.
+support@findmali.com
 
-## Future Development
+## Security
 
-See:
+- Keep private credentials server-side.
+- Never expose secret keys in frontend code.
+- Keep email infrastructure credentials private.
+- Use appropriate access controls for administrative services.
 
-docs/PRODUCTION-ROADMAP.md
+## License
+
+All rights reserved unless otherwise specified.
