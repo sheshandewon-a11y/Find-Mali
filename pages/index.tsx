@@ -1,4 +1,3 @@
-
 import Head from 'next/head';
 import GlobalMailGlobe from "../components/GlobalMailGlobe";
 import Link from 'next/link';
@@ -6,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Turnstile } from '@marsidev/react-turnstile';
 import {
   Activity, ArrowRight, Check, ChevronDown, Clock3,
-  Copy, Globe2, Inbox, LockKeyhole, Mail, Menu,
+  Copy, Globe2, Inbox, Mail, Menu,
   Plus, RefreshCw, ShieldCheck, Sparkles, Trash2,
   X, Zap, Heart, Eye, Send, ArrowLeft,
 } from 'lucide-react';
@@ -28,8 +27,6 @@ export default function Home() {
   const [remaining, setRemaining] = useState(0);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
 
-  // Local countdown target for newly created inboxes.
-  // Restored inboxes continue using the server expiry timestamp.
   const [countdownEndsAt, setCountdownEndsAt] =
     useState<number | null>(null);
 
@@ -111,11 +108,9 @@ export default function Home() {
 
       setExpiresAt(expiry);
 
-      // Start the visible countdown at exactly 60:00.
       setCountdownEndsAt(Date.now() + 3600 * 1000);
       setRemaining(3600);
 
-      // Allow the next expiry to be handled.
       expiryHandled.current = false;
 
       setNotice('Your new temporary inbox is ready.');
@@ -195,7 +190,6 @@ export default function Home() {
               setAddress(result.email || savedEmail);
               setExpiresAt(expiry);
 
-              // Restored inboxes use the server expiry.
               setCountdownEndsAt(null);
               expiryHandled.current = false;
 
@@ -239,7 +233,6 @@ export default function Home() {
               return;
             }
 
-            // Only create another inbox if the old one has expired.
             if (response.status !== 404) {
               throw new Error(
                 result.message ||
@@ -253,8 +246,6 @@ export default function Home() {
           );
         }
 
-        // First visit or expired inbox.
-        // No CAPTCHA is required for automatic creation.
         await createRealInbox();
       } catch (error) {
         setNotice(
@@ -284,7 +275,6 @@ export default function Home() {
 
       setRemaining(seconds);
 
-      // Automatically replace expired inbox without CAPTCHA.
       if (seconds <= 0 && !expiryHandled.current) {
         expiryHandled.current = true;
 
@@ -489,7 +479,6 @@ export default function Home() {
           : 'Verification failed. Please try again.'
       );
 
-      // Reset the widget so the user can retry.
       setCaptchaWidgetKey((value) => value + 1);
     } finally {
       setCaptchaVerifying(false);
@@ -497,7 +486,6 @@ export default function Home() {
   }
 
   // CLOSE THE CURRENT INBOX VIEW
-  // This does not delete the database record.
   function resetPreview() {
     setAddress('');
     setEmails([]);
@@ -561,7 +549,6 @@ export default function Home() {
             'Your inbox has expired. Creating a new inbox...'
           );
 
-          // Automatic replacement does not require CAPTCHA.
           await createRealInbox();
           return;
         }
@@ -831,37 +818,8 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="hero-art">
-              <div className="art-orbit orbit-one" />
-              <div className="art-orbit orbit-two" />
-              <div className="art-grid" />
-
-              <div className="mail-platform">
-                <div className="platform-top" />
-
-                <div className="neon-envelope">
-                  <div className="env-flap" />
-                  <Mail size={104} strokeWidth={1.15} />
-                </div>
-
-                <div className="platform-glow" />
-              </div>
-
-              <div className="floating-lock">
-                <LockKeyhole size={38} />
-              </div>
-
-              <div className="float-chip chip-a">
-                <ShieldCheck size={15} /> PRIVATE BY DESIGN
-              </div>
-
-              <div className="float-chip chip-b">
-                <Activity size={15} /> LIVE INBOX
-              </div>
-
-              <div className="spark s1">✦</div>
-              <div className="spark s2">✧</div>
-            </div>
+            {/* NEW GLOBAL MAIL GLOBE */}
+            <GlobalMailGlobe />
           </section>
 
           {/* INBOX */}
