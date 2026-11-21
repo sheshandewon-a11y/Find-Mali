@@ -1,4 +1,4 @@
-/* FIND MALI — REAL THREE.JS GLOBE */
+/* FIND MALI — cinematic MP4 globe */
 .global-mail-art {
   position: relative;
   min-height: 500px;
@@ -12,6 +12,7 @@
     radial-gradient(ellipse at 50% 52%, rgba(0, 126, 255, .18), transparent 58%),
     radial-gradient(ellipse at 50% 100%, rgba(0, 220, 255, .08), transparent 52%);
 }
+
 .gm-back-glow {
   position: absolute;
   width: min(88%, 470px);
@@ -22,31 +23,53 @@
   animation: gmGlow 6s ease-in-out infinite;
   pointer-events: none;
 }
-.gm-globe-wrap {
+
+.gm-video-wrap {
   position: relative;
-  width: min(82%, 440px);
-  aspect-ratio: 1;
   z-index: 2;
+  width: min(90%, 490px);
+  aspect-ratio: 1;
   display: grid;
   place-items: center;
-  filter: drop-shadow(0 0 22px rgba(0, 151, 255, .22));
+  overflow: hidden;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 24px rgba(0, 151, 255, .28));
+  -webkit-mask-image: radial-gradient(circle, #000 67%, rgba(0,0,0,.94) 77%, transparent 99%);
+  mask-image: radial-gradient(circle, #000 67%, rgba(0,0,0,.94) 77%, transparent 99%);
 }
-.gm-webgl-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100% !important;
-  height: 100% !important;
+
+.gm-globe-video {
   display: block;
-  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  background: transparent;
+  border: 0;
+  outline: 0;
 }
-.gm-webgl-unavailable::after {
-  content: "3D globe is unavailable in this browser";
-  position: absolute;
-  inset: 45% 8% auto;
-  text-align: center;
+
+.gm-video-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   color: #9edfff;
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  background: radial-gradient(circle, rgba(0, 115, 220, .3), transparent 68%);
 }
+.gm-fallback-globe {
+  color: #27dfff;
+  font-size: 100px;
+  line-height: 1;
+  text-shadow: 0 0 25px rgba(0, 210, 255, .85);
+}
+
 .gm-orbit-glow {
   position: absolute;
   z-index: 1;
@@ -67,42 +90,11 @@
   border-right-color: transparent;
   transform: rotate(22deg);
 }
-.gm-mail-core {
-  position: absolute;
-  z-index: 4;
-  width: 112px;
-  height: 96px;
-  display: grid;
-  place-items: center;
-  color: #24edff;
-  border: 1px solid rgba(61, 231, 255, .72);
-  border-radius: 24px;
-  background: linear-gradient(145deg, rgba(11, 66, 126, .52), rgba(4, 18, 55, .7));
-  box-shadow: 0 0 18px rgba(0, 220, 255, .48), 0 0 48px rgba(0, 127, 255, .32), inset 0 0 22px rgba(0, 220, 255, .13);
-  backdrop-filter: blur(8px);
-  animation: gmFloat 5s ease-in-out infinite;
-}
-.gm-mail-core svg {
-  width: 72px;
-  height: 72px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  filter: drop-shadow(0 0 9px rgba(0, 230, 255, .9));
-}
-.gm-mail-core-ring {
-  position: absolute;
-  inset: -9px;
-  border: 1px solid rgba(0, 220, 255, .35);
-  border-radius: 29px;
-  animation: gmRing 3s ease-out infinite;
-  pointer-events: none;
-}
+
 .globe-chip { z-index: 6; }
 .globe-chip-a { left: 0; top: 18%; }
 .globe-chip-b { right: 0; top: 22%; }
+
 .globe-caption {
   position: absolute;
   bottom: 1%;
@@ -126,25 +118,32 @@
   animation: pulse 2s infinite;
 }
 .global-mail-art .spark { z-index: 6; }
-@keyframes gmGlow { 0%,100% { opacity: .65; transform: scale(.96); } 50% { opacity: 1; transform: scale(1.04); } }
-@keyframes gmFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
-@keyframes gmRing { 0% { opacity: .75; transform: scale(.88); } 100% { opacity: 0; transform: scale(1.22); } }
+
+@keyframes gmGlow {
+  0%,100% { opacity: .65; transform: scale(.96); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
 
 @media (max-width: 680px) {
-  .global-mail-art { height: 350px; min-height: 350px; margin: 10px -8px 0; }
-  .gm-globe-wrap { width: min(84%, 330px); }
-  .gm-mail-core { width: 82px; height: 72px; border-radius: 18px; }
-  .gm-mail-core svg { width: 56px; height: 56px; }
+  .global-mail-art {
+    height: 350px;
+    min-height: 350px;
+    margin: 10px -8px 0;
+  }
+  .gm-video-wrap { width: min(88%, 350px); }
   .globe-chip { padding: 8px 9px; font-size: 7px; letter-spacing: .5px; }
   .globe-chip-a { left: 0; top: 12%; }
   .globe-chip-b { right: 0; top: 16%; }
   .globe-caption { bottom: 0; font-size: 7px; letter-spacing: .8px; }
 }
+
 @media (max-width: 390px) {
   .global-mail-art { margin-left: -12px; margin-right: -12px; }
-  .gm-globe-wrap { width: 88%; }
+  .gm-video-wrap { width: 91%; }
   .globe-chip { font-size: 6px; padding: 7px; }
 }
+
 @media (prefers-reduced-motion: reduce) {
-  .gm-back-glow, .gm-mail-core, .gm-mail-core-ring, .globe-caption-dot { animation: none !important; }
+  .gm-back-glow, .globe-caption-dot { animation: none !important; }
+  .gm-globe-video { visibility: hidden; }
 }
