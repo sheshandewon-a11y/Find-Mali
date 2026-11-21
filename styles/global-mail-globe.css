@@ -1,8 +1,8 @@
-/* FIND MALI — cinematic MP4 globe */
+/* FIND MALI — cinematic MP4 globe in a true 1:1 square frame */
 .global-mail-art {
   position: relative;
-  min-height: 500px;
-  height: 500px;
+  min-height: 540px;
+  height: 540px;
   overflow: visible;
   isolation: isolate;
   display: flex;
@@ -15,8 +15,8 @@
 
 .gm-back-glow {
   position: absolute;
-  width: min(88%, 470px);
-  aspect-ratio: 1;
+  width: min(92%, 500px);
+  aspect-ratio: 1 / 1;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(0, 154, 255, .23), rgba(0, 70, 190, .07) 48%, transparent 72%);
   filter: blur(25px);
@@ -24,27 +24,33 @@
   pointer-events: none;
 }
 
+/* Square 1:1 player — no circular mask or circular clipping. */
 .gm-video-wrap {
   position: relative;
   z-index: 2;
-  width: min(90%, 490px);
-  aspect-ratio: 1;
+  width: min(88vw, 490px);
+  aspect-ratio: 1 / 1;
+  height: auto;
   display: grid;
   place-items: center;
   overflow: hidden;
-  border-radius: 50%;
-  filter: drop-shadow(0 0 24px rgba(0, 151, 255, .28));
-  -webkit-mask-image: radial-gradient(circle, #000 67%, rgba(0,0,0,.94) 77%, transparent 99%);
-  mask-image: radial-gradient(circle, #000 67%, rgba(0,0,0,.94) 77%, transparent 99%);
+  border-radius: 18px;
+  border: 1px solid rgba(44, 210, 255, .58);
+  background: #041326;
+  box-shadow:
+    0 0 0 1px rgba(0, 145, 255, .12),
+    0 0 24px rgba(0, 151, 255, .25),
+    inset 0 0 28px rgba(0, 130, 255, .10);
 }
 
 .gm-globe-video {
   display: block;
   width: 100%;
   height: 100%;
+  aspect-ratio: 1 / 1;
   object-fit: contain;
   object-position: center;
-  background: transparent;
+  background: #041326;
   border: 0;
   outline: 0;
 }
@@ -92,8 +98,8 @@
 }
 
 .globe-chip { z-index: 6; }
-.globe-chip-a { left: 0; top: 18%; }
-.globe-chip-b { right: 0; top: 22%; }
+.globe-chip-a { left: 0; top: 14%; }
+.globe-chip-b { right: 0; top: 18%; }
 
 .globe-caption {
   position: absolute;
@@ -126,24 +132,30 @@
 
 @media (max-width: 680px) {
   .global-mail-art {
-    height: 350px;
-    min-height: 350px;
+    height: auto;
+    min-height: 0;
+    padding: 26px 0 38px;
     margin: 10px -8px 0;
   }
-  .gm-video-wrap { width: min(88%, 350px); }
+  .gm-video-wrap {
+    width: min(88vw, 420px);
+    aspect-ratio: 1 / 1;
+    border-radius: 14px;
+  }
+  .gm-globe-video { width: 100%; height: 100%; }
   .globe-chip { padding: 8px 9px; font-size: 7px; letter-spacing: .5px; }
-  .globe-chip-a { left: 0; top: 12%; }
-  .globe-chip-b { right: 0; top: 16%; }
-  .globe-caption { bottom: 0; font-size: 7px; letter-spacing: .8px; }
+  .globe-chip-a { left: 1%; top: 5%; }
+  .globe-chip-b { right: 1%; top: 9%; }
+  .globe-caption { bottom: 4px; font-size: 7px; letter-spacing: .8px; }
+  .gm-orbit-glow { width: 96%; }
 }
 
 @media (max-width: 390px) {
   .global-mail-art { margin-left: -12px; margin-right: -12px; }
-  .gm-video-wrap { width: 91%; }
+  .gm-video-wrap { width: min(90vw, 360px); }
   .globe-chip { font-size: 6px; padding: 7px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .gm-back-glow, .globe-caption-dot { animation: none !important; }
-  .gm-globe-video { visibility: hidden; }
 }
