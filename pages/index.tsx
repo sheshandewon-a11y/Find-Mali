@@ -651,6 +651,14 @@ export default function Home() {
   // FAQ
   const faqs = [
     [
+      'What is temporary email or temp mail?',
+      'Temporary email, also called temp mail or disposable email, is a short-lived email address that can receive incoming messages without requiring a traditional email account.',
+    ],
+    [
+      'How do I get a free temp mail address?',
+      'Open FIND MALI and a temporary inbox is created automatically. Copy the displayed email address and use it wherever a temporary email address is accepted.',
+    ],
+    [
       'Does FIND MALI receive real emails?',
       'New inboxes use the findmali.com domain. Incoming delivery depends on the email routing service being active and correctly configured.',
     ],
@@ -663,19 +671,30 @@ export default function Home() {
       'Each temporary inbox remains active for 60 minutes.',
     ],
     [
-      'Can I use it on my phone?',
-      'Yes. The layout is responsive and adapts to mobile, tablet and desktop screens.',
+      'Can I use temporary email on my phone?',
+      'Yes. FIND MALI has a responsive layout that adapts to mobile phones, tablets and desktop screens.',
+    ],
+    [
+      'Is a temporary email suitable for important accounts?',
+      'Temporary inboxes are intended for short-lived, non-sensitive use. Do not use them for important personal communications, account recovery or long-term access.',
     ],
   ];
 
   return (
     <>
       <Head>
-        <title>FIND MALI — Your Inbox, Simplified</title>
+        <title>
+          Free Temp Mail - Temporary Email Inbox | FIND MALI
+        </title>
 
         <meta
           name="description"
-          content="Create a temporary FIND MALI email inbox and receive messages."
+          content="Get a free temporary email address instantly with FIND MALI. Receive incoming emails without creating an account. Your temporary inbox lasts 60 minutes."
+        />
+
+        <link
+          rel="canonical"
+          href="https://findmali.com/"
         />
 
         <meta
@@ -685,17 +704,42 @@ export default function Home() {
 
         <meta
           property="og:title"
-          content="FIND MALI — Your Inbox, Simplified"
+          content="Free Temp Mail - Temporary Email Inbox | FIND MALI"
         />
 
         <meta
           property="og:description"
-          content="Create a temporary FIND MALI email inbox and receive messages."
+          content="Create a free temporary email inbox instantly. Receive incoming emails without registration with FIND MALI."
         />
 
         <meta
           property="og:type"
           content="website"
+        />
+
+        <meta
+          property="og:site_name"
+          content="FIND MALI"
+        />
+
+        <meta
+          property="og:url"
+          content="https://findmali.com/"
+        />
+
+        <meta
+          name="twitter:card"
+          content="summary"
+        />
+
+        <meta
+          name="twitter:title"
+          content="Free Temp Mail | FIND MALI"
+        />
+
+        <meta
+          name="twitter:description"
+          content="Get a free temporary email address and receive incoming messages without registration."
         />
 
         <link
@@ -772,13 +816,20 @@ export default function Home() {
                 FREE TEMPORARY EMAIL · NO REGISTRATION
               </div>
 
-              <h1>FIND <span>MALI</span></h1>
-              <h2>Your Temporary Inbox</h2>
-              <h3>Quick. Secure. <em>Simple.</em></h3>
+              <h1>
+                Free <span>Temp Mail</span>
+              </h1>
+
+              <h2>Your Temporary Email Inbox</h2>
+
+              <h3>
+                Quick. Simple. <em>No Sign-up.</em>
+              </h3>
 
               <p>
-                Create a temporary email inbox and receive messages in one
-                simple, easy-to-use place.
+                Create a free temporary email address instantly.
+                Receive incoming messages without creating an account.
+                Your FIND MALI inbox stays active for 60 minutes.
               </p>
 
               <div className="hero-actions">
@@ -1172,10 +1223,11 @@ export default function Home() {
                   <Zap />
                 </span>
 
-                <h3>Quick to explore</h3>
+                <h3>Free temporary email</h3>
 
                 <p>
-                  Create an inbox quickly and manage messages in one place.
+                  Create a free temp mail inbox and receive incoming
+                  messages in one convenient place.
                 </p>
               </article>
 
@@ -1187,7 +1239,8 @@ export default function Home() {
                 <h3>Privacy-minded</h3>
 
                 <p>
-                  Temporary inboxes are designed for short-lived message access.
+                  Temporary inboxes are designed for short-lived
+                  message access. Avoid using them for sensitive accounts.
                 </p>
               </article>
 
@@ -1196,10 +1249,11 @@ export default function Home() {
                   <Activity />
                 </span>
 
-                <h3>Smart controls</h3>
+                <h3>Simple inbox controls</h3>
 
                 <p>
-                  Refresh, copy and read messages in one focused space.
+                  Refresh, copy and read incoming messages from
+                  one focused temporary email inbox.
                 </p>
               </article>
 
@@ -1211,8 +1265,8 @@ export default function Home() {
                 <h3>Works on any screen</h3>
 
                 <p>
-                  A responsive layout designed for phones,
-                  tablets and desktop screens.
+                  Use FIND MALI on mobile phones, tablets
+                  and desktop screens.
                 </p>
               </article>
             </div>
@@ -1232,18 +1286,21 @@ export default function Home() {
             <div>
               <span className="kicker">ABOUT FIND MALI</span>
 
-              <h2>A simpler way to explore your inbox.</h2>
+              <h2>Free temp mail made simple.</h2>
 
               <p>
-                FIND MALI provides temporary email inboxes without
-                requiring an account. Create an address, receive
-                incoming messages and read them from this page.
+                FIND MALI is a temporary email service that lets
+                you create a disposable email address without
+                registering for an account. Receive incoming
+                messages and read them directly from your inbox.
+                Each temporary inbox stays active for 60 minutes.
               </p>
 
               <ul>
-                <li><Check /> Clean and simple interface</li>
+                <li><Check /> Free temporary email inbox</li>
+                <li><Check /> No account registration required</li>
+                <li><Check /> 60-minute inbox lifetime</li>
                 <li><Check /> Mobile-friendly experience</li>
-                <li><Check /> Temporary email inboxes</li>
               </ul>
             </div>
           </section>
@@ -1254,7 +1311,10 @@ export default function Home() {
               <div>
                 <span className="kicker">HELP CENTER</span>
                 <h2>Frequently asked questions</h2>
-                <p>Quick answers about temporary email.</p>
+                <p>
+                  Learn about free temp mail and temporary email
+                  with FIND MALI.
+                </p>
               </div>
             </div>
 
@@ -1294,9 +1354,10 @@ export default function Home() {
 
             <div>
               <span className="kicker">READY TO TAKE A LOOK?</span>
-              <h2>Your next inbox starts here.</h2>
+              <h2>Get your free temp mail inbox.</h2>
               <p>
-                Create a temporary inbox and receive your emails.
+                Create a temporary email address and receive
+                incoming messages with FIND MALI.
               </p>
             </div>
 
