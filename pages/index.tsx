@@ -1,5 +1,5 @@
+
 import Head from 'next/head';
-import GlobalMailGlobe from "../components/GlobalMailGlobe";
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { Turnstile } from '@marsidev/react-turnstile';
@@ -817,9 +817,6 @@ export default function Home() {
                 </div>
               </div>
             </div>
-
-            {/* NEW GLOBAL MAIL GLOBE */}
-            <GlobalMailGlobe />
           </section>
 
           {/* INBOX */}
