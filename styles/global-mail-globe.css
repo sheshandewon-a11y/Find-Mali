@@ -1,161 +1,77 @@
-/* FIND MALI — cinematic MP4 globe in a true 1:1 square frame */
+/*
+ * FIND MALI — responsive 1:1 video frame.
+ * No circular mask, badges, captions, decorative orbit templates or overlays.
+ */
+
 .global-mail-art {
   position: relative;
-  min-height: 540px;
-  height: 540px;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
   overflow: visible;
-  isolation: isolate;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background:
-    radial-gradient(ellipse at 50% 52%, rgba(0, 126, 255, .18), transparent 58%),
-    radial-gradient(ellipse at 50% 100%, rgba(0, 220, 255, .08), transparent 52%);
+  background: transparent;
+  box-shadow: none;
+  border: 0;
 }
 
-.gm-back-glow {
-  position: absolute;
-  width: min(92%, 500px);
-  aspect-ratio: 1 / 1;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(0, 154, 255, .23), rgba(0, 70, 190, .07) 48%, transparent 72%);
-  filter: blur(25px);
-  animation: gmGlow 6s ease-in-out infinite;
-  pointer-events: none;
-}
-
-/* Square 1:1 player — no circular mask or circular clipping. */
+/* The frame takes the full available column width and stays perfectly square. */
 .gm-video-wrap {
   position: relative;
-  z-index: 2;
-  width: min(88vw, 490px);
+  display: block;
+  width: 100%;
+  max-width: 520px;
+  min-width: 0;
   aspect-ratio: 1 / 1;
   height: auto;
-  display: grid;
-  place-items: center;
+  margin: 0 auto;
+  padding: 0;
   overflow: hidden;
-  border-radius: 18px;
-  border: 1px solid rgba(44, 210, 255, .58);
-  background: #041326;
-  box-shadow:
-    0 0 0 1px rgba(0, 145, 255, .12),
-    0 0 24px rgba(0, 151, 255, .25),
-    inset 0 0 28px rgba(0, 130, 255, .10);
+  border: 0;
+  border-radius: 0;
+  background: #061326;
+  box-shadow: none;
 }
 
+/* Video always fills the responsive square frame. */
 .gm-globe-video {
   display: block;
   width: 100%;
   height: 100%;
+  min-width: 0;
   aspect-ratio: 1 / 1;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center;
-  background: #041326;
+  margin: 0;
+  padding: 0;
   border: 0;
+  border-radius: 0;
   outline: 0;
-}
-
-.gm-video-fallback {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  color: #9edfff;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 2px;
-  background: radial-gradient(circle, rgba(0, 115, 220, .3), transparent 68%);
-}
-.gm-fallback-globe {
-  color: #27dfff;
-  font-size: 100px;
-  line-height: 1;
-  text-shadow: 0 0 25px rgba(0, 210, 255, .85);
-}
-
-.gm-orbit-glow {
-  position: absolute;
-  z-index: 1;
-  width: min(96%, 520px);
-  height: 30%;
-  border: 1px solid rgba(0, 220, 255, .55);
-  border-left-color: transparent;
-  border-right-color: transparent;
-  border-radius: 50%;
-  filter: drop-shadow(0 0 8px rgba(0, 220, 255, .7));
-  pointer-events: none;
-}
-.gm-orbit-glow-one { transform: rotate(-17deg); }
-.gm-orbit-glow-two {
-  width: min(86%, 460px);
-  border-color: rgba(155, 83, 255, .62);
-  border-left-color: transparent;
-  border-right-color: transparent;
-  transform: rotate(22deg);
-}
-
-.globe-chip { z-index: 6; }
-.globe-chip-a { left: 0; top: 14%; }
-.globe-chip-b { right: 0; top: 18%; }
-
-.globe-caption {
-  position: absolute;
-  bottom: 1%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  z-index: 6;
-  color: #8eb9d8;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-  text-align: center;
-}
-.globe-caption-dot {
-  width: 6px;
-  height: 6px;
-  flex: none;
-  border-radius: 50%;
-  background: #087dff;
-  box-shadow: 0 0 10px #087dff;
-  animation: pulse 2s infinite;
-}
-.global-mail-art .spark { z-index: 6; }
-
-@keyframes gmGlow {
-  0%,100% { opacity: .65; transform: scale(.96); }
-  50% { opacity: 1; transform: scale(1.04); }
+  background: #061326;
 }
 
 @media (max-width: 680px) {
   .global-mail-art {
-    height: auto;
-    min-height: 0;
-    padding: 26px 0 38px;
-    margin: 10px -8px 0;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
   }
+
   .gm-video-wrap {
-    width: min(88vw, 420px);
+    width: 100%;
+    max-width: 100%;
     aspect-ratio: 1 / 1;
-    border-radius: 14px;
+    margin: 0;
   }
-  .gm-globe-video { width: 100%; height: 100%; }
-  .globe-chip { padding: 8px 9px; font-size: 7px; letter-spacing: .5px; }
-  .globe-chip-a { left: 1%; top: 5%; }
-  .globe-chip-b { right: 1%; top: 9%; }
-  .globe-caption { bottom: 4px; font-size: 7px; letter-spacing: .8px; }
-  .gm-orbit-glow { width: 96%; }
-}
 
-@media (max-width: 390px) {
-  .global-mail-art { margin-left: -12px; margin-right: -12px; }
-  .gm-video-wrap { width: min(90vw, 360px); }
-  .globe-chip { font-size: 6px; padding: 7px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .gm-back-glow, .globe-caption-dot { animation: none !important; }
+  .gm-globe-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 }
