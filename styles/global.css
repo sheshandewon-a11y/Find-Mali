@@ -33,6 +33,55 @@ body {
 
 .site-shell {
   max-width: 1280px;
+  
+/* =========================================
+   FIND MALI - HERO AFTER GLOBE REMOVAL
+========================================= */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: auto;
+  align-items: start;
+  gap: 0;
+}
+
+.hero-copy {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Remove leftover globe containers if any */
+.hero-art,
+.global-mail-art,
+.global-mail-globe {
+  display: none !important;
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: auto;
+    gap: 0;
+  }
+}
+
+/* Mobile */
+@media (max-width: 680px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: auto;
+    padding-top: 45px;
+    padding-bottom: 28px;
+    gap: 0;
+  }
+
+  .hero-copy {
+    width: 100%;
+  }
+}
+
   margin: auto;
   padding: 0 34px;
   overflow: hidden;
